@@ -40,7 +40,7 @@ public interface IGameEventListener {
 
     void onMysteryCellSpawned(int position, int duration);
 
-    void onRoundEnd(List<Player> players, int mysteryPosition, int mysteryRoundsLeft);
+    void onRoundEnd(List<Player> players);
 
     void onGameWon(String color);
 }

@@ -122,11 +122,8 @@ public class Piece implements IMovable, ICapturable {
         this.inBase = false;
     }
 
-    /**
-     * Returns the home straight index (0-4), or -1 if not in home straight.
-     */
     public int getHomeStraightIndex() {
-        if (position >= HOME_STRAIGHT_OFFSET && position < HOME_STRAIGHT_OFFSET + 5) {
+        if (isInHomeStraight()) {
             return position - HOME_STRAIGHT_OFFSET;
         }
         return -1;
@@ -177,7 +174,7 @@ public class Piece implements IMovable, ICapturable {
 
     // Approach info -------------------------------------------------------------------------------------------
 
-    public boolean hasPassedApproachOnce() {
+    public boolean getHasPassedApproachOnce() {
         return hasPassedApproachOnce;
     }
 
@@ -202,7 +199,7 @@ public class Piece implements IMovable, ICapturable {
     }
 
     public String getFullName() {
-        return color.charAt(0) + name;
+        return String.valueOf(color.charAt(0)) + name;
     }
 
     private void resetToBase() {
