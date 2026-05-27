@@ -56,34 +56,4 @@ public class CaptureHandler {
         board.getBaseCell(capturedPiece.getColor()).addPiece(capturedPiece);
         capturerPiece.incrementCaptureCount();
     }
-
-    // Capture scan to get all capturable pieces of another piece -------------------------------------------------
-
-    public List<Piece> getCapturableOpponents(Piece piece, int diceValue) {
-        List<Piece> capturable = new ArrayList<>();
-
-        if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) {
-            return capturable;
-        }
-
-        int cellCount = config.getStandardCellCount();
-        int effective = piece.getEffectiveMovement(diceValue);
-        int destination;
-
-        if ("CLOCKWISE".equals(piece.getDirection())) {
-            destination = (piece.getPosition() + effective) % cellCount;
-        } else {
-            destination = (piece.getPosition() - effective + cellCount) % cellCount;
-        }
-
-        Cell destCell = board.getCellAt(destination);
-        List<Piece> piecesAtDest = destCell.getPieces();
-
-        if (piecesAtDest.size() == 1
-                && !piecesAtDest.get(0).getColor().equalsIgnoreCase(piece.getColor())) {
-            capturable.add(piecesAtDest.get(0));
-        }
-
-        return capturable;
-    }
 }

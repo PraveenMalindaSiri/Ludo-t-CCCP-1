@@ -182,35 +182,32 @@ public class GameEngine {
                 piece.notifyDiceRoll(diceValue);
             }
 
-            // Check frozen piece teleports (Rule T-13)
+            // Check frozen piece teleports
             handleFrozenTeleports(player);
 
-            // Consecutive six tracking (Rule 4, Rule T-6)
+            // Consecutive six tracking
             if (diceValue == config.getDiceSides()) {
                 player.incrementConsecutiveSixes();
 
                 if (ruleEngine.isThirdConsecutiveSix(player.getConsecutiveSixes())) {
                     handleTripleSixIfBlock(player);
                     player.resetConsecutiveSixes();
-                    return; // no move, no bonus
+                    return;
                 }
-                keepRolling = true; // six grants bonus roll (Rule 4)
+                keepRolling = true;
             } else {
                 player.resetConsecutiveSixes();
             }
 
             boolean captured = false;
 
-            // FIX: get valid moves first, then decide base entry separately
             List<Piece> validMoves = ruleEngine.getValidMoves(player, diceValue);
 
             if (diceValue == config.getDiceSides()
                     && !player.getPiecesInBase().isEmpty()
                     && player.shouldMoveFromBase(diceValue, board)) {
-                // FIX: let strategy pick which base piece to move
                 executeBaseEntry(player, validMoves, diceValue);
             } else {
-                // FIX: exclude base pieces if player chose not to exit base
                 validMoves.removeIf(Piece::isInBase);
 
                 if (!validMoves.isEmpty()) {
@@ -259,16 +256,30 @@ public class GameEngine {
     }
 
 
-    // Enter the Home Straight --------------------------------------------------------------------------------------------------
+    // Enter the Home Straight ----------------------------------------------------------------------------------
 
-    private boolean executeHomeStraightEntry(Player player, Piece piece,
-                                             int effective, Cell fromCell,
-                                             int fromPos, int stepsOverApproach) {
+    private void executeHomeStraightEntry(Player player, Piece piece,
+                                          int effective, Cell fromCell,
+                                          int fromPos, int stepsOverApproach) {
+
+        int stepsToHomeFromApproach = config.getHomePathLength() + 1;
+        if (stepsOverApproach > stepsToHomeFromApproach) {
+            return;
+        }
+
+        if (piece.isInBlock()) {
+            Block block = blockHandler.findBlockAt(fromCell);
+            if (block != null) {
+                blockHandler.breakBlock(piece, block);
+            }
+        }
+
         int homeStraightIndex = stepsOverApproach - 1;
 
         fromCell.removePiece(piece);
 
         if (homeStraightIndex >= config.getHomePathLength()) {
+            // Reaches home exactly (stepsOverApproach == homePathLength + 1)
             piece.moveToHome();
             board.getHomeCell(piece.getColor()).addPiece(piece);
         } else {
@@ -279,61 +290,110 @@ public class GameEngine {
 
         firePieceMoved(player.getColor(), piece.getFullName(),
                 fromPos, piece.getPosition(), effective, piece.getDirection());
-        return false;
     }
 
     // Normal movement ---------------------------------------------------------------------------------------------
 
     private boolean executeMove(Player player, Piece piece, int diceValue) {
 
-        // ── Block movement (Rule T-4) ─────────────────────────────────────────
-        if (piece.isInBlock()) {
-            Cell pieceCell = board.getCellAt(piece.getPosition());
-            Block block = blockHandler.findBlockAt(pieceCell);
-            if (block != null) {
-                int oldPos = piece.getPosition();
-                blockHandler.moveBlock(block, diceValue);
-                firePieceMoved(player.getColor(), piece.getFullName(),
-                        oldPos, piece.getPosition(),
-                        diceValue, piece.getDirection());
-                return false;
-            }
-        }
-
-        // ── Home straight movement ────────────────────────────────────────────
         if (piece.isInHomeStraight()) {
             executeHomeStraightMove(player, piece, diceValue);
             return false;
         }
 
-        // ── Standard path ─────────────────────────────────────────────────────
+        // Block movement
+        if (piece.isInBlock()) {
+            Cell pieceCell = board.getCellAt(piece.getPosition());
+            Block attackingBlock = blockHandler.findBlockAt(pieceCell);
+
+            if (attackingBlock != null) {
+                int oldPos = piece.getPosition();
+                boolean captured = false;
+
+                // Issue 7: validate path BEFORE moving block
+                int destination = blockHandler.calculateBlockDestination(attackingBlock, diceValue);
+                int firstBlockInPath = blockHandler.getFirstOpponentBlockPositionForBlock(attackingBlock, diceValue);
+
+                if (firstBlockInPath != -1) {
+                    if (firstBlockInPath == destination) {
+                        // Opponent block AT destination — attempt block capture (Rule T-8)
+                        Block defendingBlock = blockHandler.findBlockAt(board.getCellAt(destination));
+                        if (defendingBlock != null
+                                && blockHandler.canBlockCaptureBlock(attackingBlock, defendingBlock)) {
+                            // Issue 5: block-vs-block capture
+                            blockHandler.handleBlockCapture(attackingBlock, defendingBlock);
+                            captured = true;
+                            // Fall through — moveBlock moves to now-empty destination
+                        } else {
+                            // Cannot capture — blocked at destination, stop before it
+                            String blockingColor = board.getCellAt(destination).hasPieces()
+                                    ? board.getCellAt(destination).getPieces().get(0).getColor() : "";
+                            String blockingName = board.getCellAt(destination).hasPieces()
+                                    ? board.getCellAt(destination).getPieces().get(0).getFullName() : "";
+                            firePieceBlocked(player.getColor(), piece.getFullName(),
+                                    oldPos, destination, blockingColor, blockingName);
+                            fireNoOtherPieces(player.getColor());
+                            return false;
+                        }
+                    } else {
+                        // Opponent block in MIDDLE of path — cannot jump over (Rule T-3)
+                        String blockingColor = board.getCellAt(firstBlockInPath).hasPieces()
+                                ? board.getCellAt(firstBlockInPath).getPieces().get(0).getColor() : "";
+                        String blockingName = board.getCellAt(firstBlockInPath).hasPieces()
+                                ? board.getCellAt(firstBlockInPath).getPieces().get(0).getFullName() : "";
+                        firePieceBlocked(player.getColor(), piece.getFullName(),
+                                oldPos, firstBlockInPath, blockingColor, blockingName);
+                        fireNoOtherPieces(player.getColor());
+                        return false;
+                    }
+                }
+
+                // Path clear (or defending block was captured) — move block
+                blockHandler.moveBlock(attackingBlock, diceValue);
+
+                firePieceMoved(player.getColor(), piece.getFullName(),
+                        oldPos, piece.getPosition(), diceValue, piece.getDirection());
+
+                // Mystery cell check for block landing
+                if (mysteryManager.isOnMysteryCell(piece.getPosition())) {
+                    handleMysteryLanding(player, piece);
+                }
+
+                return captured;
+            }
+        }
+
+        // Standard path
         int fromPos = piece.getPosition();
         Cell fromCell = board.getCellAt(fromPos);
         int effective = piece.getEffectiveMovement(diceValue);
 
         // Check approach / home straight entry
         if (ruleEngine.canPassApproach(piece, diceValue)) {
-            // FIX: use blockHandler.distanceFromApproach — no duplicate
             int stepsToApproach = blockHandler.distanceFromApproach(piece);
             int stepsOverApproach = effective - stepsToApproach;
+
+            // If already ON approach cell, entire effective move goes into home straight
+            if (piece.getPosition() == board.getApproachPosition(piece.getColor())) {
+                stepsOverApproach = effective;
+            }
 
             if (stepsOverApproach > 0) {
                 boolean canEnter = ruleEngine.canEnterHomeStraight(piece);
 
                 if ("COUNTERCLOCKWISE".equals(piece.getDirection())) {
                     if (!ruleEngine.canEnterHomeStraightCCW(piece)) {
-                        // First CCW pass — mark flag, continue on standard path
                         piece.setHasPassedApproachOnce(true);
                         canEnter = false;
                     }
                 }
 
                 if (canEnter) {
-                    return executeHomeStraightEntry(
+                    executeHomeStraightEntry(
                             player, piece, effective,
                             fromCell, fromPos, stepsOverApproach);
+                    return false;
                 }
-                // Cannot enter — fall through to standard path move
             } else {
                 // Lands exactly on approach — mark CCW first pass
                 if ("COUNTERCLOCKWISE".equals(piece.getDirection())
@@ -346,17 +406,18 @@ public class GameEngine {
         // Calculate standard path destination
         int destination = ruleEngine.calculateDestination(piece, diceValue);
 
-        // Check for opponent block (Rule T-3)
-        if (blockHandler.isBlockedByOpponent(piece, destination)) {
+        // Scan entire path for opponent blocks — not just destination (Rule T-3)
+        int blockPos = blockHandler.getFirstOpponentBlockPosition(piece, diceValue);
+        if (blockPos != -1) {
             return handleBlockedMove(
-                    player, piece, diceValue, fromPos, destination, fromCell);
+                    player, piece, diceValue, fromPos, blockPos, fromCell);
         }
 
         // Capture check BEFORE moving
         Piece capturedPiece = captureHandler.getCapturedPieceAt(
                 destination, player.getColor());
 
-        // Block-vs-block capture check (Rule T-8)
+        // Block-vs-block capture check (if pieces move individually)
         Block attackingBlock = piece.isInBlock()
                 ? blockHandler.findBlockAt(fromCell) : null;
         Block defendingBlock = blockHandler.findBlockAt(
@@ -386,7 +447,7 @@ public class GameEngine {
             captured = true;
         }
 
-        // Block-vs-block capture (Rule T-8)
+        // Block-vs-block capture
         if (!captured && attackingBlock != null && defendingBlock != null) {
             if (blockHandler.canBlockCaptureBlock(attackingBlock, defendingBlock)) {
                 blockHandler.handleBlockCapture(attackingBlock, defendingBlock);

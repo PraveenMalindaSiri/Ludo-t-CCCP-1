@@ -1,6 +1,7 @@
 package player.strategy;
 
 import board.Board;
+import config.GameConfig;
 import piece.Piece;
 import rules.*;
 
@@ -25,7 +26,7 @@ public class AggressiveStrategy implements IPlayerStrategy {
     public Piece choosePieceToMove(List<Piece> validMoves, int diceValue,
                                    Board board, RuleEngine ruleEngine) {
         // capture opponent closest to its home
-        Piece capturingPiece = findBestCapture(validMoves, diceValue, board);
+        Piece capturingPiece = findBestCapture(validMoves, diceValue, board, ruleEngine);
         if (capturingPiece != null) return capturingPiece;
 
         // move the single piece already on the board
@@ -37,15 +38,19 @@ public class AggressiveStrategy implements IPlayerStrategy {
     }
 
     // find the piece that can capture opponent close to their home
-    private Piece findBestCapture(List<Piece> validMoves, int diceValue, Board board) {
+    private Piece findBestCapture(List<Piece> validMoves, int diceValue,
+                                  Board board, RuleEngine ruleEngine) {
         Piece bestPiece = null;
         int minDistance = Integer.MAX_VALUE;
 
         for (Piece piece : validMoves) {
             if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) continue;
 
-            List<Piece> targets = captureHandler.getCapturableOpponents(piece, diceValue);
-            for (Piece target : targets) {
+            int destination = ruleEngine.calculateDestination(piece, diceValue);
+            Piece target = captureHandler.getCapturedPieceAt(
+                    destination, piece.getColor());
+
+            if (target != null) {
                 int distance = blockHandler.distanceFromApproach(target);
                 if (distance < minDistance) {
                     minDistance = distance;
@@ -58,17 +63,31 @@ public class AggressiveStrategy implements IPlayerStrategy {
 
     @Override
     public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
-        // Only move from base if no piece is on the board
-        boolean hasPieceOnBoard = pieces.stream()
-                .anyMatch(p -> p.isOnBoard() && !p.isInBase() && !p.isAtHome());
 
+        boolean hasPieceOnBoard = false;
+        for (Piece p : pieces) {
+            if (p.isOnBoard() && !p.isInBase() && !p.isAtHome()) {
+                hasPieceOnBoard = true;
+                break;
+            }
+        }
         if (!hasPieceOnBoard) return true;
 
-        // If board has piece, bring another if that can't capture
+        int count = GameConfig.getInstance().getStandardCellCount();
+
         for (Piece piece : pieces) {
             if (!piece.isOnBoard() || piece.isInBase() || piece.isAtHome()) continue;
-            List<Piece> targets = captureHandler.getCapturableOpponents(piece, 6);
-            if (!targets.isEmpty()) return false;
+
+            int effective = piece.getEffectiveMovement(6);
+            int destination;
+            if ("CLOCKWISE".equals(piece.getDirection())) {
+                destination = (piece.getPosition() + effective) % count;
+            } else {
+                destination = (piece.getPosition() - effective + count) % count;
+            }
+
+            Piece target = captureHandler.getCapturedPieceAt(destination, piece.getColor());
+            if (target != null) return false;
         }
         return true;
     }

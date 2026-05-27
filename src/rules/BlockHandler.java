@@ -110,7 +110,7 @@ public class BlockHandler {
     }
 
     // direction of the piece farthest from home.
-    private String resolveBlockDirection(Block block) {
+    public String resolveBlockDirection(Block block) {
         Piece farthest = null;
         int maxDistance = -1;
 
@@ -123,6 +123,42 @@ public class BlockHandler {
         }
 
         return farthest != null ? farthest.getDirection() : "CLOCKWISE";
+    }
+
+    // Calculates where the block will land after moving.
+    public int calculateBlockDestination(Block block, int diceValue) {
+        int movementPerPiece = diceValue / block.getSize();
+        String direction = resolveBlockDirection(block);
+        int current = block.getPosition();
+        int count = config.getStandardCellCount();
+
+        if ("CLOCKWISE".equals(direction)) {
+            return (current + movementPerPiece) % count;
+        } else {
+            return (current - movementPerPiece + count) % count;
+        }
+    }
+
+    // scan entire block path to check for first enemy block
+    public int getFirstOpponentBlockPositionForBlock(Block block, int diceValue) {
+        int movementPerPiece = diceValue / block.getSize();
+        String direction = resolveBlockDirection(block);
+        int current = block.getPosition();
+        int count = config.getStandardCellCount();
+
+        // Use first piece as color representative — all pieces share the same color
+        Piece representative = block.getPieces().get(0);
+
+        for (int step = 1; step <= movementPerPiece; step++) {
+            int checkPos = "CLOCKWISE".equals(direction)
+                    ? (current + step) % count
+                    : (current - step + count) % count;
+
+            if (isBlockedByOpponent(representative, checkPos)) {
+                return checkPos;
+            }
+        }
+        return -1;
     }
 
     // cal cells remaining between piece's position and its approach cell.
@@ -238,6 +274,24 @@ public class BlockHandler {
 
     public Map<Integer, Block> getActiveBlocks() {
         return new HashMap<>(activeBlocks);
+    }
+
+    // Returns the position of the first opponent block found anywhere
+    public int getFirstOpponentBlockPosition(Piece piece, int diceValue) {
+        int effective = piece.getEffectiveMovement(diceValue);
+        int current = piece.getPosition();
+        int count = config.getStandardCellCount();
+
+        for (int step = 1; step <= effective; step++) {
+            int checkPos = "CLOCKWISE".equals(piece.getDirection())
+                    ? (current + step) % count
+                    : (current - step + count) % count;
+
+            if (isBlockedByOpponent(piece, checkPos)) {
+                return checkPos;
+            }
+        }
+        return -1;
     }
 
     private Block findPlayerBlock(Player player) {

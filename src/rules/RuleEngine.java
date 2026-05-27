@@ -89,6 +89,10 @@ public class RuleEngine {
         int approachPos = board.getApproachPosition(piece.getColor());
         int cellCount = config.getStandardCellCount();
 
+        if (current == approachPos) {
+            return true;
+        }
+
         if ("CLOCKWISE".equals(piece.getDirection())) {
             for (int step = 1; step <= effective; step++) {
                 if ((current + step) % cellCount == approachPos) return true;
@@ -134,13 +138,6 @@ public class RuleEngine {
 
             // On the standard path
             int destination = calculateDestination(piece, diceValue);
-
-            // Check if blocked by same-color piece
-            Cell destCell = board.getCellAt(destination);
-            if (blockHandler.isSameColorBlock(piece, destCell)) {
-                continue;
-            }
-
             valid.add(piece);
         }
 

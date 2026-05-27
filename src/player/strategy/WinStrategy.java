@@ -22,7 +22,7 @@ public class WinStrategy implements IPlayerStrategy {
     public Piece choosePieceToMove(List<Piece> validMoves, int diceValue,
                                    Board board, RuleEngine ruleEngine) {
         // piece needing capture that can capture right now
-        Piece needsCapturePiece = findCaptureForNeedyPiece(validMoves, diceValue);
+        Piece needsCapturePiece = findCaptureForNeedyPiece(validMoves, diceValue, ruleEngine);
         if (needsCapturePiece != null) return needsCapturePiece;
 
         // piece closest to home
@@ -33,12 +33,15 @@ public class WinStrategy implements IPlayerStrategy {
     }
 
     // pieces with no captures
-    private Piece findCaptureForNeedyPiece(List<Piece> validMoves, int diceValue) {
+    private Piece findCaptureForNeedyPiece(List<Piece> validMoves, int diceValue,
+                                           RuleEngine ruleEngine) {
         for (Piece piece : validMoves) {
             if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) continue;
             if (piece.getCaptureCount() > 0) continue;
-            List<Piece> targets = captureHandler.getCapturableOpponents(piece, diceValue);
-            if (!targets.isEmpty()) return piece;
+            int destination = ruleEngine.calculateDestination(piece, diceValue);
+            Piece target = captureHandler.getCapturedPieceAt(destination, piece.getColor());
+
+            if (target != null) return piece;
         }
         return null;
     }
