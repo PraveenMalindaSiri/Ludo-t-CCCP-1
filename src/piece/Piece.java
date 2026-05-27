@@ -2,6 +2,7 @@ package piece;
 
 import block.ICapturable;
 import block.IMovable;
+import config.GameConfig;
 import piece.state.IPieceState;
 import piece.state.NormalState;
 
@@ -38,10 +39,11 @@ public class Piece implements IMovable, ICapturable {
 
     @Override
     public void move(int steps) {
+        int count = GameConfig.getInstance().getStandardCellCount();
         if ("CLOCKWISE".equals(direction)) {
-            position = (position + steps) % 52;
+            position = (position + steps) % count;
         } else {
-            position = (position - steps + 52) % 52;
+            position = (position - steps + count) % count;
         }
     }
 
@@ -131,7 +133,8 @@ public class Piece implements IMovable, ICapturable {
 
     public boolean isInHomeStraight() {
         return position >= HOME_STRAIGHT_OFFSET
-                && position < HOME_STRAIGHT_OFFSET + 5;
+                && position < HOME_STRAIGHT_OFFSET
+                + GameConfig.getInstance().getHomePathLength();
     }
 
     // Status -------------------------------------------------------------------------------------------

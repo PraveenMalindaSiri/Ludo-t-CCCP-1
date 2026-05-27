@@ -1,5 +1,6 @@
 package event;
 
+import config.GameConfig;
 import mystery.MysteryManager;
 import piece.Piece;
 import player.Player;
@@ -90,8 +91,10 @@ public class GameLogger implements IGameEventListener {
         System.out.println(capitalize(color) + " player moves piece "
                 + pieceName + " to the starting point.");
         System.out.println(capitalize(color) + " player now has "
-                + boardCount + "/4 on pieces on the board and "
-                + baseCount + "/4 pieces on the base.");
+                + boardCount + "/" + GameConfig.getInstance().getPiecesPerPlayer()
+                + " on pieces on the board and "
+                + baseCount + "/" + GameConfig.getInstance().getPiecesPerPlayer()
+                + " pieces on the base.");
     }
 
     @Override
@@ -148,8 +151,10 @@ public class GameLogger implements IGameEventListener {
                 + ", and returns it to the base.");
         // Spec requires board/base count of the CAPTURED player after capture
         System.out.println(capitalize(capturedColor) + " player now has "
-                + boardCount + "/4 on pieces on the board and "
-                + baseCount + "/4 pieces on the base.");
+                + boardCount + "/" + GameConfig.getInstance().getPiecesPerPlayer()
+                + " on pieces on the board and "
+                + baseCount + "/" + GameConfig.getInstance().getPiecesPerPlayer()
+                + " pieces on the base.");
     }
 
     // Mystery info ----------------------------------------------------------------
@@ -206,10 +211,11 @@ public class GameLogger implements IGameEventListener {
             int boardCount = player.getPiecesOnBoard().size();
             int baseCount = player.getPiecesInBase().size();
 
-            System.out.println(capitalize(player.getColor())
-                    + " player now has "
-                    + boardCount + "/4 on pieces on the board and "
-                    + baseCount + "/4 pieces on the base.");
+            System.out.println(capitalize(player.getColor()) + " player now has "
+                    + boardCount + "/" + GameConfig.getInstance().getPiecesPerPlayer()
+                    + " on pieces on the board and "
+                    + baseCount + "/" + GameConfig.getInstance().getPiecesPerPlayer()
+                    + " pieces on the base.");
 
             System.out.println("============================");
             System.out.println("Location of pieces "

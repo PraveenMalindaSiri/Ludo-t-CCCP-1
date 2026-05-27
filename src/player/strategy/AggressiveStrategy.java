@@ -78,7 +78,7 @@ public class AggressiveStrategy implements IPlayerStrategy {
         for (Piece piece : pieces) {
             if (!piece.isOnBoard() || piece.isInBase() || piece.isAtHome()) continue;
 
-            int effective = piece.getEffectiveMovement(6);
+            int effective = piece.getEffectiveMovement(GameConfig.getInstance().getStandardCellCount());
             int destination;
             if ("CLOCKWISE".equals(piece.getDirection())) {
                 destination = (piece.getPosition() + effective) % count;

@@ -177,18 +177,14 @@ public class GameEngine {
             int diceValue = dice.roll();
             fireDiceRolled(player.getColor(), diceValue);
 
-            // Notify all pieces — FrozenState tracks consecutive 3s
             for (Piece piece : player.getPieces()) {
                 piece.notifyDiceRoll(diceValue);
             }
 
-            // Check frozen piece teleports
             handleFrozenTeleports(player);
 
-            // Consecutive six tracking
             if (diceValue == config.getDiceSides()) {
                 player.incrementConsecutiveSixes();
-
                 if (ruleEngine.isThirdConsecutiveSix(player.getConsecutiveSixes())) {
                     handleTripleSixIfBlock(player);
                     player.resetConsecutiveSixes();
@@ -200,7 +196,6 @@ public class GameEngine {
             }
 
             boolean captured = false;
-
             List<Piece> validMoves = ruleEngine.getValidMoves(player, diceValue);
 
             if (diceValue == config.getDiceSides()
@@ -213,13 +208,33 @@ public class GameEngine {
                 if (!validMoves.isEmpty()) {
                     Piece chosen = player.selectMove(
                             validMoves, diceValue, board, ruleEngine);
+
                     if (chosen != null) {
+                        if (!chosen.isInBlock()
+                                && !chosen.isInHomeStraight()
+                                && !chosen.isInBase()) {
+                            int blockPos = blockHandler
+                                    .getFirstOpponentBlockPosition(chosen, diceValue);
+                            if (blockPos != -1 && validMoves.size() > 1) {
+                                // Look for a non-blocked alternative
+                                for (Piece alt : validMoves) {
+                                    if (alt == chosen) continue;
+                                    if (alt.isInBase() || alt.isAtHome()) continue;
+                                    int altBlockPos = blockHandler
+                                            .getFirstOpponentBlockPosition(alt, diceValue);
+                                    if (altBlockPos == -1) {
+                                        chosen = alt; // use non-blocked piece instead
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
                         captured = executeMove(player, chosen, diceValue);
                     }
                 }
             }
 
-            // Capture grants bonus roll (Rule T-2)
             if (captured) {
                 keepRolling = true;
             }
@@ -356,7 +371,9 @@ public class GameEngine {
 
                 // Mystery cell check for block landing
                 if (mysteryManager.isOnMysteryCell(piece.getPosition())) {
-                    handleMysteryLanding(player, piece);
+                    if (handleMysteryLanding(player, piece)) {
+                        captured = true;
+                    }
                 }
 
                 return captured;
@@ -462,7 +479,9 @@ public class GameEngine {
 
         // Mystery cell (Rule T-11)
         if (mysteryManager.isOnMysteryCell(destination)) {
-            handleMysteryLanding(player, piece);
+            if (handleMysteryLanding(player, piece)) {
+                captured = true; // post-teleport capture grants bonus roll
+            }
         }
 
         return captured;
@@ -546,7 +565,15 @@ public class GameEngine {
 
     // Mystery cell --------------------------------------------------------------------------------------------------
 
-    private void handleMysteryLanding(Player player, Piece piece) {
+    private boolean handleMysteryLanding(Player player, Piece piece) {
+        if (piece.isInBlock() && !piece.isInHomeStraight() && !piece.isInBase()) {
+            Cell oldCell = board.getCellAt(piece.getPosition());
+            Block block = blockHandler.findBlockAt(oldCell);
+            if (block != null) {
+                blockHandler.breakBlock(piece, block);
+            }
+        }
+
         // MysteryManager removes from mystery cell and applies effect
         mysteryManager.handleLanding(piece);
 
@@ -555,8 +582,9 @@ public class GameEngine {
 
         fireMysteryLanding(player.getColor(), piece.getFullName(), destination);
 
+        // Fire effect-specific output events
         switch (effectIndex) {
-            case 0: // Alpha — Energized or Sick (Rule T-12)
+            case 0: // Alpha
                 if (mysteryManager.isLastAlphaEnergized()) {
                     fireTeleportEffect(player.getColor(), piece.getFullName(),
                             "feels energized, and movement speed doubles.");
@@ -565,23 +593,53 @@ public class GameEngine {
                             "feels sick, and movement speed halves.");
                 }
                 break;
-            case 1: // Beta — Frozen (Rule T-13)
+            case 1: // Beta
                 fireTeleportEffect(player.getColor(), piece.getFullName(),
                         "attends briefing and cannot move for four rounds.");
                 break;
-            case 2: // Gamma (Rule T-14)
+            case 2: // Gamma
                 if (mysteryManager.isLastGammaCCWToBeta()) {
-                    // CCW → redirected to Beta — fire the correct message
                     fireDirectionChanged(player.getColor(), piece.getFullName(),
-                            "COUNTERCLOCKWISE", "CLOCKWISE"); // else branch in GameLogger
+                            "COUNTERCLOCKWISE", "CLOCKWISE");
                 } else {
-                    // CW → direction changed to CCW
                     fireDirectionChanged(player.getColor(), piece.getFullName(),
                             "CLOCKWISE", "COUNTERCLOCKWISE");
                 }
                 break;
-            // 3=Base, 4=X, 5=Approach — no extra effect messages
         }
+
+        if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) {
+            return false;
+        }
+
+        int newPos = piece.getPosition();
+        if (newPos < 0 || newPos >= config.getStandardCellCount()) {
+            return false;
+        }
+
+        // Check for opponent piece at new position (capture)
+        Piece capturedPiece = captureHandler.getCapturedPieceAt(newPos, player.getColor());
+        if (capturedPiece != null) {
+            Player capturedPlayer = getPlayerByColor(capturedPiece.getColor());
+            new CaptureCommand(piece, capturedPiece, captureHandler).execute();
+
+            int boardCount = capturedPlayer != null
+                    ? capturedPlayer.getPiecesOnBoard().size() : 0;
+            int baseCount = capturedPlayer != null
+                    ? capturedPlayer.getPiecesInBase().size() : 0;
+
+            firePieceCaptured(player.getColor(), piece.getFullName(),
+                    newPos,
+                    capturedPiece.getColor(), capturedPiece.getFullName(),
+                    boardCount, baseCount);
+            return true;
+        }
+
+        // Check for same-color piece at new position (block formation)
+        Cell newCell = board.getCellAt(newPos);
+        checkAndFormBlock(piece, newCell);
+
+        return false;
     }
 
     private String getEffectDestinationName(int effectIndex) {

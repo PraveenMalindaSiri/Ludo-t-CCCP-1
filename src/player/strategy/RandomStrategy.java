@@ -53,8 +53,20 @@ public class RandomStrategy implements IPlayerStrategy {
         boolean landsMystery = mysteryManager.isOnMysteryCell(destination);
 
         if ("COUNTERCLOCKWISE".equals(current.getDirection())) {
+            // CCW seeks mystery
+            if (landsMystery) return current;
+
+            for (Piece piece : validMoves) {
+                if (piece.isInBase() || piece.isAtHome()
+                        || piece.isInHomeStraight()) continue;
+                int dest = ruleEngine.calculateDestination(piece, diceValue);
+                if (mysteryManager.isOnMysteryCell(dest)) return piece;
+            }
+
             return current;
+
         } else {
+            // CW avoids mystery — swap only if landing on mystery
             if (landsMystery && validMoves.size() > 1) {
                 for (Piece piece : validMoves) {
                     if (piece == current) continue;

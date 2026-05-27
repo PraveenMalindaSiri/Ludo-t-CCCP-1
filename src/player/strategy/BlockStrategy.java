@@ -99,17 +99,23 @@ public class BlockStrategy implements IPlayerStrategy {
             if (!piece.isOnBoard() || piece.isInBase() || piece.isAtHome()) continue;
             if (piece.isInHomeStraight()) continue;
 
-            int destination = (piece.getPosition() + piece.getEffectiveMovement(6))
-                    % cellCount;
+            int movement = piece.getEffectiveMovement(diceValue);
+            int destination;
+            if ("CLOCKWISE".equals(piece.getDirection())) {
+                destination = (piece.getPosition() + movement) % cellCount;
+            } else {
+                destination = (piece.getPosition() - movement + cellCount) % cellCount;
+            }
+
             Cell destCell = board.getCellAt(destination);
 
-            // if moving 6 can build a block, do it before get new one to board
+            // If moving this piece creates a block
             if (blockHandler.isSameColorBlock(piece, destCell)) return false;
 
-            // One same-color piece there — moving 6 would form a new block
+            // One same-color piece there
             if (!destCell.getPieces().isEmpty()
                     && destCell.getPieces().size() == 1
-                    && destCell.getPieces().get(0).getColor()
+                    && destCell.getPieces().getFirst().getColor()
                     .equalsIgnoreCase(piece.getColor())) {
                 return false;
             }
