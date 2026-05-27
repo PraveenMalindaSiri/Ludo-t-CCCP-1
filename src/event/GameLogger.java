@@ -20,6 +20,17 @@ public class GameLogger implements IGameEventListener {
                 + color.substring(1).toLowerCase();
     }
 
+    private String formatPosition(int pos, String color) {
+        if (pos == Piece.HOME_POSITION) return "Home";
+        if (pos == Piece.BASE_POSITION) return "Base";
+        if (pos >= Piece.HOME_STRAIGHT_OFFSET
+                && pos < Piece.HOME_STRAIGHT_OFFSET + 5) {
+            return color.toLowerCase() + "homepath"
+                    + (pos - Piece.HOME_STRAIGHT_OFFSET);
+        }
+        return String.valueOf(pos);
+    }
+
     // Player info ----------------------------------------------------------------
 
     @Override
@@ -87,7 +98,8 @@ public class GameLogger implements IGameEventListener {
     public void onPieceMoved(String color, String pieceName,
                              int from, int to, int value, String direction) {
         System.out.println(capitalize(color) + " moves piece " + pieceName
-                + " from location " + from + " to " + to
+                + " from location " + formatPosition(from, color)
+                + " to " + formatPosition(to, color)
                 + " by " + value + " units in "
                 + direction.toLowerCase() + " direction.");
     }
