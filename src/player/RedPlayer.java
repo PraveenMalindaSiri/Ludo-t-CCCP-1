@@ -8,13 +8,14 @@ import rules.RuleEngine;
 import java.util.List;
 
 public class RedPlayer extends Player {
-    public RedPlayer(List<Piece> pieces) {
-        super("RED", pieces, new AggressiveStrategy());
+
+    public RedPlayer(List<Piece> pieces, AggressiveStrategy strategy) {
+        super("RED", "Red", pieces, strategy);
     }
 
     @Override
-    protected Piece choosePieceToMove(List<Piece> pieces, int diceValue,
+    protected Piece choosePieceToMove(List<Piece> validMoves, int diceValue,
                                       Board board, RuleEngine ruleEngine) {
-        return strategy.choosePieceToMove(pieces, diceValue, board, ruleEngine);
+        return strategy.choosePieceToMove(validMoves, diceValue, board, ruleEngine);
     }
 }

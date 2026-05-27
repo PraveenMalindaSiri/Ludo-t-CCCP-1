@@ -125,8 +125,8 @@ public class BlockHandler {
         return farthest != null ? farthest.getDirection() : "CLOCKWISE";
     }
 
-    // Reusable in rule engine to cal cells remaining between piece's position and its approach cell.
-    int distanceFromApproach(Piece piece) {
+    // cal cells remaining between piece's position and its approach cell.
+    public int distanceFromApproach(Piece piece) {
         int current = piece.getPosition();
         int approach = board.getApproachPosition(piece.getColor());
         int count = config.getStandardCellCount();

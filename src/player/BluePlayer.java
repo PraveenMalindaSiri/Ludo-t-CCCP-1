@@ -9,13 +9,14 @@ import rules.RuleEngine;
 import java.util.List;
 
 public class BluePlayer extends Player {
-    public BluePlayer(List<Piece> pieces, MysteryManager mysteryManager) {
-        super("BLUE", pieces, new RandomStrategy(pieces, mysteryManager));
+
+    public BluePlayer(List<Piece> pieces, RandomStrategy strategy) {
+        super("BLUE", "Blue", pieces, strategy);
     }
 
     @Override
-    protected Piece choosePieceToMove(List<Piece> pieces, int diceValue,
+    protected Piece choosePieceToMove(List<Piece> validMoves, int diceValue,
                                       Board board, RuleEngine ruleEngine) {
-        return strategy.choosePieceToMove(pieces, diceValue, board, ruleEngine);
+        return strategy.choosePieceToMove(validMoves, diceValue, board, ruleEngine);
     }
 }

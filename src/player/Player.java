@@ -11,52 +11,36 @@ import java.util.List;
 
 public abstract class Player {
     protected final String color;
+    protected final String name;
     protected final List<Piece> pieces;
     protected final IPlayerStrategy strategy;
     protected int consecutiveSixes;
-    protected int lastDiceValue;
 
-    protected Player(String color, List<Piece> pieces, IPlayerStrategy strategy) {
+    protected Player(String color, String name,
+                     List<Piece> pieces, IPlayerStrategy strategy) {
         this.color = color;
+        this.name = name;
         this.pieces = new ArrayList<>(pieces);
         this.strategy = strategy;
         this.consecutiveSixes = 0;
-        this.lastDiceValue = 0;
     }
 
-    public final Piece takeTurn(IDice dice, Board board, RuleEngine ruleEngine) {
-        lastDiceValue = dice.roll();
-
-        if (lastDiceValue == 6) {
-            consecutiveSixes++;
-        } else {
-            consecutiveSixes = 0;
-        }
-
-        for (Piece p : pieces) {
-            p.notifyDiceRoll(lastDiceValue);
-        }
-
-        if (ruleEngine.isThirdConsecutiveSix(consecutiveSixes)) {
-            consecutiveSixes = 0;
-            return null;
-        }
-
-        List<Piece> validMoves = ruleEngine.getValidMoves(this, lastDiceValue);
-        if (validMoves.isEmpty()) {
-            return null;
-        }
-
-        return choosePieceToMove(new ArrayList<>(pieces), lastDiceValue, board, ruleEngine);
+    public final Piece selectMove(List<Piece> validMoves, int diceValue,
+                                  Board board, RuleEngine ruleEngine) {
+        if (validMoves.isEmpty()) return null;
+        return choosePieceToMove(validMoves, diceValue, board, ruleEngine);
     }
 
+    // children will implement this accordingly
     protected abstract Piece choosePieceToMove(
             List<Piece> pieces, int diceValue, Board board, RuleEngine ruleEngine);
 
-    // Queries ------------------------------------------------------------------------------------------
-    public String getColor() {
-        return color;
+    // each child has different ways to exit the base
+    public boolean shouldMoveFromBase(int diceValue, Board board) {
+        return strategy.shouldMoveFromBase(new ArrayList<>(pieces), diceValue, board);
     }
+
+    // Queries ------------------------------------------------------------------------------------------
 
     public List<Piece> getPieces() {
         return new ArrayList<>(pieces);
@@ -65,7 +49,7 @@ public abstract class Player {
     public List<Piece> getPiecesOnBoard() {
         List<Piece> result = new ArrayList<>();
         for (Piece p : pieces) {
-            if (p.isOnBoard() && !p.isAtHome()) result.add(p);
+            if (p.isOnBoard()) result.add(p);
         }
         return result;
     }
@@ -93,19 +77,28 @@ public abstract class Player {
         return true;
     }
 
-    public int getLastDiceValue() {
-        return lastDiceValue;
-    }
-
-    public int getConsecutiveSixes() {
-        return consecutiveSixes;
-    }
-
     public void incrementConsecutiveSixes() {
         consecutiveSixes++;
     }
 
     public void resetConsecutiveSixes() {
         consecutiveSixes = 0;
+    }
+
+    public int getConsecutiveSixes() {
+        return consecutiveSixes;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String toString() {
+        return name + " Player";
     }
 }

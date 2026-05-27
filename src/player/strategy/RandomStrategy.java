@@ -19,12 +19,58 @@ public class RandomStrategy implements IPlayerStrategy {
     }
 
     @Override
-    public Piece choosePieceToMove(List<Piece> validPieces, int diceValue, Board board, RuleEngine ruleEngine) {
-        return null;
+    public Piece choosePieceToMove(List<Piece> validMoves, int diceValue,
+                                   Board board, RuleEngine ruleEngine) {
+        int attempts = pieceIterator.size();
+
+        for (int i = 0; i < attempts; i++) {
+            Piece current = pieceIterator.current();
+
+            if (validMoves.contains(current)) {
+                pieceIterator.next();
+
+                // Apply mystery preference only for pieces on standard path
+                if (!current.isInBase() && !current.isAtHome()
+                        && !current.isInHomeStraight()) {
+                    return applyMysteryPreference(current, validMoves,
+                            diceValue, ruleEngine);
+                }
+                return current;
+            }
+
+            pieceIterator.next();
+        }
+
+        return validMoves.getFirst();
+    }
+
+    // CW will avoid mystery. CCW seeks mystery.
+    private Piece applyMysteryPreference(Piece current, List<Piece> validMoves,
+                                         int diceValue, RuleEngine ruleEngine) {
+        if (!mysteryManager.isActive()) return current;
+
+        int destination = ruleEngine.calculateDestination(current, diceValue);
+        boolean landsMystery = mysteryManager.isOnMysteryCell(destination);
+
+        if ("COUNTERCLOCKWISE".equals(current.getDirection())) {
+            return current;
+        } else {
+            if (landsMystery && validMoves.size() > 1) {
+                for (Piece piece : validMoves) {
+                    if (piece == current) continue;
+                    if (piece.isInBase() || piece.isAtHome()
+                            || piece.isInHomeStraight()) continue;
+                    int dest = ruleEngine.calculateDestination(piece, diceValue);
+                    if (!mysteryManager.isOnMysteryCell(dest)) return piece;
+                }
+            }
+            return current;
+        }
     }
 
     @Override
     public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
-        return false;
+        Piece current = pieceIterator.current();
+        return current.isInBase();
     }
 }

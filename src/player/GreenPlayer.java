@@ -8,13 +8,14 @@ import rules.RuleEngine;
 import java.util.List;
 
 public class GreenPlayer extends Player {
-    public GreenPlayer(List<Piece> pieces) {
-        super("GREEN", pieces, new BlockStrategy());
+
+    public GreenPlayer(List<Piece> pieces, BlockStrategy strategy) {
+        super("GREEN", "Green", pieces, strategy);
     }
 
     @Override
-    protected Piece choosePieceToMove(List<Piece> pieces, int diceValue,
+    protected Piece choosePieceToMove(List<Piece> validMoves, int diceValue,
                                       Board board, RuleEngine ruleEngine) {
-        return strategy.choosePieceToMove(pieces, diceValue, board, ruleEngine);
+        return strategy.choosePieceToMove(validMoves, diceValue, board, ruleEngine);
     }
 }
