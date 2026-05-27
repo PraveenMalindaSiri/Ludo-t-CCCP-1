@@ -14,11 +14,11 @@ public class GammaEffect implements IMysteryEffect {
     // CW will tp to gamma and swap direction. CWW enter to beta effect
     @Override
     public void apply(Piece piece, Board board) {
-        if (piece.getDirection().equals("clockwise")) {
+        if ("CLOCKWISE".equals(piece.getDirection())) {
             int gammaCell = GameConfig.getInstance().getGammaCell();
             piece.moveToPosition(gammaCell);
             board.getCellAt(gammaCell).addPiece(piece);
-            piece.setDirection("counterclockwise");
+            piece.setDirection("COUNTERCLOCKWISE");
         } else {
             betaEffect.apply(piece, board);
         }

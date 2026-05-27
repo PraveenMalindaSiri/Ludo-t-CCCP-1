@@ -7,8 +7,7 @@ public class BaseEffect implements IMysteryEffect {
     // Go to base cell
     @Override
     public void apply(Piece piece, Board board) {
-        piece.resetState();
-        piece.moveToBase();
+        piece.capture();
         board.getBaseCell(piece.getColor()).addPiece(piece);
     }
 }

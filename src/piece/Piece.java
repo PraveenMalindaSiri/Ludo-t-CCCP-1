@@ -220,7 +220,7 @@ public class Piece implements IMovable, ICapturable {
         return getFullName() + "@" + positionLabel();
     }
 
-    private String positionLabel() {
+    public String positionLabel() {
         if (inBase) return "Base";
         if (atHome) return "Home";
         if (isInHomeStraight()) return color.toLowerCase() + "homepath" + getHomeStraightIndex();

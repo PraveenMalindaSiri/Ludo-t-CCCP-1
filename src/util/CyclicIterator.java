@@ -1,5 +1,6 @@
 package util;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CyclicIterator<T> {
@@ -10,7 +11,7 @@ public class CyclicIterator<T> {
         if (items == null || items.isEmpty()) {
             throw new IllegalArgumentException("CyclicIterator requires a non-empty list.");
         }
-        this.items = items;
+        this.items = new ArrayList<>(items);
         this.currentIndex = 0;
     }
 

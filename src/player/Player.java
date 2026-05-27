@@ -1,7 +1,6 @@
 package player;
 
 import board.Board;
-import dice.IDice;
 import piece.Piece;
 import player.strategy.IPlayerStrategy;
 import rules.RuleEngine;

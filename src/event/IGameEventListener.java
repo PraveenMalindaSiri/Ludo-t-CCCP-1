@@ -7,6 +7,8 @@ import java.util.List;
 public interface IGameEventListener {
     void onPlayerInfo(String color, List<String> pieceNames);
 
+    void onInitialRoll(String color, int value);
+
     void onDiceRolled(String color, int value);
 
     void onFirstPlayer(String color);
@@ -29,7 +31,8 @@ public interface IGameEventListener {
 
     void onPieceCaptured(String capturerColor, String capturerName,
                          int cell,
-                         String capturedColor, String capturedName);
+                         String capturedColor, String capturedName,
+                         int boardCount, int baseCount);
 
     void onMysteryLanding(String color, String pieceName, String destination);
 

@@ -10,5 +10,6 @@ public class StartEffect implements IMysteryEffect {
         int startPos = board.getStartingPosition(piece.getColor());
         piece.moveToPosition(startPos);
         board.getStartingCell(piece.getColor()).addPiece(piece);
+        piece.setHasPassedApproachOnce(false);
     }
 }
