@@ -82,23 +82,19 @@ public class RandomStrategy implements IPlayerStrategy {
     }
 
     @Override
-    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
-        if (diceValue != GameConfig.getInstance().getDiceSides()) {
-            return false;
-        }
+    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue,
+                                      Board board, RuleEngine ruleEngine) {
+        if (diceValue != GameConfig.getInstance().getDiceSides()) return false;
 
         int attempts = pieceIterator.size();
         for (int i = 0; i < attempts; i++) {
             Piece current = pieceIterator.current();
-
             if (current.isAtHome() || !current.canMove()) {
                 pieceIterator.next();
                 continue;
             }
-
             return current.isInBase();
         }
-
         return false;
     }
 }

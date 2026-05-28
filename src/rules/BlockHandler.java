@@ -145,7 +145,7 @@ public class BlockHandler {
         int maxDistance = -1;
 
         for (Piece piece : block.getPieces()) {
-            int distance = distanceFromApproach(piece);
+            int distance = distanceToHomeEntry(piece);
             if (distance > maxDistance) {
                 maxDistance = distance;
                 farthest = piece;
@@ -225,9 +225,13 @@ public class BlockHandler {
         if (blockPieces.size() < 2) return;
 
         Piece keepPiece = getClosestToHome(blockPieces);
+        int sides = config.getDiceSides();
+        int cumulativeSteps = 0;
 
         for (Piece piece : blockPieces) {
             if (piece == keepPiece) continue;
+
+            cumulativeSteps += sides;
 
             breakBlock(piece, block);
 
@@ -237,13 +241,13 @@ public class BlockHandler {
             Cell oldCell = board.getCellAt(piece.getPosition());
             oldCell.removePiece(piece);
 
-            int sides = config.getDiceSides();
-
             int newPos;
             if ("CLOCKWISE".equals(originalDir)) {
-                newPos = (piece.getPosition() + sides) % config.getStandardCellCount();
+                newPos = (piece.getPosition() + cumulativeSteps)
+                        % config.getStandardCellCount();
             } else {
-                newPos = (piece.getPosition() - sides + config.getStandardCellCount())
+                newPos = (piece.getPosition() - cumulativeSteps
+                        + config.getStandardCellCount())
                         % config.getStandardCellCount();
             }
 
@@ -340,16 +344,30 @@ public class BlockHandler {
 
     private Piece getClosestToHome(List<Piece> pieces) {
         Piece closest = pieces.getFirst();
-        int minDistance = distanceFromApproach(closest);
+        int minDistance = distanceToHomeEntry(closest);
 
         for (int i = 1; i < pieces.size(); i++) {
-            int d = distanceFromApproach(pieces.get(i));
+            int d = distanceToHomeEntry(pieces.get(i));
             if (d < minDistance) {
                 minDistance = d;
                 closest = pieces.get(i);
             }
         }
         return closest;
+    }
+
+    // True distance to home entry for strategy use.
+    public int distanceToHomeEntry(Piece piece) {
+        if (piece.isInHomeStraight()) return 0;
+
+        int distance = distanceFromApproach(piece);
+
+        if ("COUNTERCLOCKWISE".equals(piece.getDirection())
+                && !piece.getHasPassedApproachOnce()) {
+            distance += config.getStandardCellCount();
+        }
+
+        return distance;
     }
 
     public int getBlockMovementAmount(Block block, int diceValue) {

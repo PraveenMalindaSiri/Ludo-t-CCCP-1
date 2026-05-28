@@ -55,7 +55,7 @@ public class WinStrategy implements IPlayerStrategy {
             if (piece.isInBase() || piece.isAtHome()) continue;
             int distance = piece.isInHomeStraight()
                     ? 0
-                    : blockHandler.distanceFromApproach(piece);
+                    : blockHandler.distanceToHomeEntry(piece);
             if (distance < minDistance) {
                 minDistance = distance;
                 best = piece;
@@ -65,7 +65,7 @@ public class WinStrategy implements IPlayerStrategy {
     }
 
     @Override
-    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
+    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board, RuleEngine ruleEngine) {
         return true;
     }
 }

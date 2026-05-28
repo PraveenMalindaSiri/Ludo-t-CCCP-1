@@ -63,6 +63,29 @@ public class RuleEngine {
         return effective > stepsToHome;
     }
 
+    // Check if a standard-path piece's roll would overshoot home
+    public boolean overshootsHomeFromStandardPath(Piece piece, int diceValue) {
+        if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) return false;
+        if (!canPassApproach(piece, diceValue)) return false;
+        if (!canEnterHomeStraight(piece)) return false;
+
+        if ("COUNTERCLOCKWISE".equals(piece.getDirection())
+                && !canEnterHomeStraightCCW(piece)) {
+            return false;
+        }
+
+        int effective = piece.getEffectiveMovement(diceValue);
+        int stepsToApproach = blockHandler.distanceFromApproach(piece);
+        int stepsOverApproach = effective - stepsToApproach;
+
+        if (piece.getPosition() == board.getApproachPosition(piece.getColor())) {
+            stepsOverApproach = effective;
+        }
+
+        int maxSteps = config.getHomePathLength() + 1;
+        return stepsOverApproach > maxSteps;
+    }
+
     public int calculateHomeStraightDestination(Piece piece, int diceValue) {
         int effective = piece.getEffectiveMovement(diceValue);
         return piece.getHomeStraightIndex() + effective;
@@ -154,6 +177,9 @@ public class RuleEngine {
                     continue;
                 }
             }
+
+            // overshotting from strandard path
+            if (overshootsHomeFromStandardPath(piece, diceValue)) continue;
 
             valid.add(piece);
         }

@@ -82,7 +82,7 @@ public class BlockStrategy implements IPlayerStrategy {
             if (piece.isInBase() || piece.isAtHome()) continue;
             int distance = piece.isInHomeStraight()
                     ? 0
-                    : blockHandler.distanceFromApproach(piece);
+                    : blockHandler.distanceToHomeEntry(piece);
             if (distance < minDistance) {
                 minDistance = distance;
                 best = piece;
@@ -92,27 +92,17 @@ public class BlockStrategy implements IPlayerStrategy {
     }
 
     @Override
-    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
-        int cellCount = GameConfig.getInstance().getStandardCellCount();
-
+    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue,
+                                      Board board, RuleEngine ruleEngine) {
         for (Piece piece : pieces) {
             if (!piece.isOnBoard() || piece.isInBase() || piece.isAtHome()) continue;
             if (piece.isInHomeStraight()) continue;
 
-            int movement = piece.getEffectiveMovement(diceValue);
-            int destination;
-            if ("CLOCKWISE".equals(piece.getDirection())) {
-                destination = (piece.getPosition() + movement) % cellCount;
-            } else {
-                destination = (piece.getPosition() - movement + cellCount) % cellCount;
-            }
-
+            int destination = ruleEngine.calculateDestination(piece, diceValue);
             Cell destCell = board.getCellAt(destination);
 
-            // If moving this piece creates a block
             if (blockHandler.isSameColorBlock(piece, destCell)) return false;
 
-            // One same-color piece there
             if (!destCell.getPieces().isEmpty()
                     && destCell.getPieces().size() == 1
                     && destCell.getPieces().getFirst().getColor()

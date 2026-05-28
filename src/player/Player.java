@@ -35,8 +35,9 @@ public abstract class Player {
             List<Piece> pieces, int diceValue, Board board, RuleEngine ruleEngine);
 
     // each child has different ways to exit the base
-    public boolean shouldMoveFromBase(int diceValue, Board board) {
-        return strategy.shouldMoveFromBase(new ArrayList<>(pieces), diceValue, board);
+    public boolean shouldMoveFromBase(int diceValue, Board board, RuleEngine ruleEngine) {
+        return strategy.shouldMoveFromBase(
+                new ArrayList<>(pieces), diceValue, board, ruleEngine);
     }
 
     // Queries ------------------------------------------------------------------------------------------

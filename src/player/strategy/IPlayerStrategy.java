@@ -14,5 +14,6 @@ public interface IPlayerStrategy {
     Piece choosePieceToMove(List<Piece> validPieces, int diceValue,
                             Board board, RuleEngine ruleEngine);
 
-    boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board);
+    boolean shouldMoveFromBase(List<Piece> pieces, int diceValue,
+                               Board board, RuleEngine ruleEngine);
 }

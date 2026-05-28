@@ -29,6 +29,14 @@ public class AggressiveStrategy implements IPlayerStrategy {
         Piece capturingPiece = findBestCapture(validMoves, diceValue, board, ruleEngine);
         if (capturingPiece != null) return capturingPiece;
 
+        for (Piece piece : validMoves) {
+            if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) continue;
+            int destination = ruleEngine.calculateDestination(piece, diceValue);
+            if (!ruleEngine.isSameColorAtDestination(piece, destination)) {
+                return piece;
+            }
+        }
+
         // move the single piece already on the board
         for (Piece piece : validMoves) {
             if (piece.isOnBoard() && !piece.isInBase()) return piece;
@@ -51,7 +59,7 @@ public class AggressiveStrategy implements IPlayerStrategy {
                     destination, piece.getColor());
 
             if (target != null) {
-                int distance = blockHandler.distanceFromApproach(target);
+                int distance = blockHandler.distanceToHomeEntry(target);
                 if (distance < minDistance) {
                     minDistance = distance;
                     bestPiece = piece;
@@ -62,36 +70,26 @@ public class AggressiveStrategy implements IPlayerStrategy {
     }
 
     @Override
-    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
+    public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue,
+                                      Board board, RuleEngine ruleEngine) {
         boolean hasPieceOnBoard = false;
         for (Piece p : pieces) {
-            if (p.isOnBoard()
-                    && !p.isInBase()
-                    && !p.isAtHome()
-                    && !p.isInHomeStraight()) {
+            if (p.isOnBoard() && !p.isInBase()
+                    && !p.isAtHome() && !p.isInHomeStraight()) {
                 hasPieceOnBoard = true;
                 break;
             }
         }
         if (!hasPieceOnBoard) return true;
 
-        // Has piece on standard path — only bring another if that piece can't capture
-        int count = GameConfig.getInstance().getStandardCellCount();
-
         for (Piece piece : pieces) {
             if (!piece.isOnBoard() || piece.isInBase()
                     || piece.isAtHome() || piece.isInHomeStraight()) continue;
 
-            int effective = piece.getEffectiveMovement(diceValue);
-            int destination;
-            if ("CLOCKWISE".equals(piece.getDirection())) {
-                destination = (piece.getPosition() + effective) % count;
-            } else {
-                destination = (piece.getPosition() - effective + count) % count;
-            }
-
-            Piece target = captureHandler.getCapturedPieceAt(destination, piece.getColor());
-            if (target != null) return false; // current piece CAN capture — don't exit base
+            int destination = ruleEngine.calculateDestination(piece, diceValue);
+            Piece target = captureHandler.getCapturedPieceAt(
+                    destination, piece.getColor());
+            if (target != null) return false;
         }
         return true;
     }

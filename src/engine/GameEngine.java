@@ -67,8 +67,15 @@ public class GameEngine {
         determineFirstPlayer();
 
         List<Player> finishOrder = new ArrayList<>();
-        while (finishOrder.size() < players.size()) {
+
+        while (finishOrder.size() < players.size() - 1) {
             playRound(finishOrder);
+        }
+
+        for (Player player : players) {
+            if (!finishOrder.contains(player)) {
+                fireGameWon(player.getColor());
+            }
         }
     }
 
@@ -200,7 +207,7 @@ public class GameEngine {
 
             if (diceValue == config.getDiceSides()
                     && !player.getPiecesInBase().isEmpty()
-                    && player.shouldMoveFromBase(diceValue, board)) {
+                    && player.shouldMoveFromBase(diceValue, board, ruleEngine)) {
                 executeBaseEntry(player, validMoves, diceValue);
             } else {
                 validMoves.removeIf(Piece::isInBase);
@@ -413,7 +420,9 @@ public class GameEngine {
 
                     // All block pieces earn capture count
                     for (Piece blockPiece : attackingBlock.getPieces()) {
-                        blockPiece.incrementCaptureCount();
+                        if (blockPiece != piece) {
+                            blockPiece.incrementCaptureCount();
+                        }
                     }
 
                     int boardCount = capturedPlayer != null
@@ -428,7 +437,6 @@ public class GameEngine {
                     captured = true;
                 }
 
-                // Issue 17: absorb same-color normal pieces into block after movement
                 if (!captured) {
                     blockHandler.absorbSameColorPieces(attackingBlock);
                 }
