@@ -540,18 +540,24 @@ public class GameEngine {
     private void handleFrozenTeleports(Player player) {
         for (Piece piece : player.getPieces()) {
             IPieceState state = piece.getState();
-            if (!(state instanceof FrozenState)) continue;
-
-            FrozenState frozen = (FrozenState) state;
+            if (!(state instanceof FrozenState frozen)) continue;
             if (!frozen.shouldTeleportToBase()) continue;
 
-            // Guard: only remove from cell if piece is on standard path
             if (!piece.isInBase() && !piece.isAtHome()
                     && !piece.isInHomeStraight()) {
-                board.getCellAt(piece.getPosition()).removePiece(piece);
+
+                Cell currentCell = board.getCellAt(piece.getPosition());
+
+                if (piece.isInBlock()) {
+                    Block block = blockHandler.findBlockAt(currentCell);
+                    if (block != null) {
+                        blockHandler.breakBlock(piece, block);
+                    }
+                }
+
+                currentCell.removePiece(piece);
             }
 
-            // Full reset — Rule T-9 applies
             piece.capture();
             board.getBaseCell(piece.getColor()).addPiece(piece);
             frozen.resetTeleportFlag();
@@ -675,6 +681,8 @@ public class GameEngine {
         List<Piece> piecesOnCell = cell.getPieces();
         if (piecesOnCell.size() < 2) return;
 
+        if (!blockHandler.canBeInBlock(piece)) return;
+
         boolean allSameColor = true;
         for (Piece p : piecesOnCell) {
             if (!p.getColor().equalsIgnoreCase(piece.getColor())) {
@@ -693,10 +701,12 @@ public class GameEngine {
                     break;
                 }
             }
+            // createBlock already checks canBeInBlock on both pieces
             if (other != null) {
                 blockHandler.createBlock(piece, other, cell);
             }
         } else {
+            // addToBlock already checks canBeInBlock
             blockHandler.addToBlock(piece, existing, cell);
         }
     }

@@ -1,5 +1,6 @@
 package rules;
 
+import block.Block;
 import board.Board;
 import board.Cell;
 import config.GameConfig;
@@ -111,6 +112,7 @@ public class RuleEngine {
         if (piece.isAtHome()) return false;
         if (!piece.canMove()) return false;
         if (piece.isInBase()) return canMoveFromBase(diceValue);
+        if (piece.getEffectiveMovement(diceValue) <= 0) return false; // sick pieces dice value 1 is 0
         if (piece.isInHomeStraight()) return !overshotsHome(piece, diceValue);
         return true;
     }
@@ -136,8 +138,17 @@ public class RuleEngine {
                 continue;
             }
 
-            // On the standard path
-            int destination = calculateDestination(piece, diceValue);
+            if (piece.getEffectiveMovement(diceValue) <= 0) continue;
+
+            if (piece.isInBlock()) {
+                Block block = blockHandler.findBlockAt(
+                        board.getCellAt(piece.getPosition()));
+                if (block != null && (!blockHandler.canBlockMove(block, diceValue)
+                        || !blockHandler.canBeInBlock(piece))) {
+                    continue;
+                }
+            }
+
             valid.add(piece);
         }
 

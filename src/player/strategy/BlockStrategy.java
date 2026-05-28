@@ -58,7 +58,7 @@ public class BlockStrategy implements IPlayerStrategy {
     // block movement
     private Piece getBlockPiece(List<Piece> validMoves) {
         for (Piece piece : validMoves) {
-            if (piece.isInBlock()) return piece;
+            if (piece.isInBlock() && blockHandler.canBeInBlock(piece)) return piece;
         }
         return null;
     }

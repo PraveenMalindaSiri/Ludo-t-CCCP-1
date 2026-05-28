@@ -3,8 +3,7 @@ package piece;
 import block.ICapturable;
 import block.IMovable;
 import config.GameConfig;
-import piece.state.IPieceState;
-import piece.state.NormalState;
+import piece.state.*;
 
 /**
  * Represents one game piece belonging to a player.
@@ -149,6 +148,18 @@ public class Piece implements IMovable, ICapturable {
 
     public boolean isInBase() {
         return inBase;
+    }
+
+    public boolean isFrozen() {
+        return currentState instanceof FrozenState;
+    }
+
+    public boolean isSick() {
+        return currentState instanceof SickState;
+    }
+
+    public boolean isEnergized() {
+        return currentState instanceof EnergizedState;
     }
 
     // Directions -------------------------------------------------------------------------------------------

@@ -27,6 +27,17 @@ public class BlockHandler {
         this.activeBlocks = new HashMap<>();
     }
 
+    // piece can be in a block if it is on the standard path and in normal state
+    public boolean canBeInBlock(Piece piece) {
+        return piece.isOnBoard()
+                && !piece.isInBase()
+                && !piece.isAtHome()
+                && !piece.isInHomeStraight()
+                && !piece.isFrozen()
+                && !piece.isSick()
+                && !piece.isEnergized();
+    }
+
     // Block detection ------------------------------------------------------------------------------------
 
     public boolean isBlockedByOpponent(Piece movingPiece, int destination) {
@@ -56,6 +67,8 @@ public class BlockHandler {
     // Block creation ----------------------------------------------------------------------------------------
 
     public Block createBlock(Piece newPiece, Piece existingPiece, Cell cell) {
+        if (!canBeInBlock(newPiece) || !canBeInBlock(existingPiece)) return null;
+
         Block block = new Block(cell);
         block.addPiece(existingPiece);
         block.addPiece(newPiece);
@@ -64,6 +77,8 @@ public class BlockHandler {
     }
 
     public void addToBlock(Piece piece, Block block, Cell cell) {
+        if (!canBeInBlock(piece)) return;
+
         block.addPiece(piece);
         activeBlocks.put(cell.getPosition(), block);
     }
@@ -71,32 +86,29 @@ public class BlockHandler {
     // Block movement ----------------------------------------------------------------------------------------
 
     public void moveBlock(Block block, int diceValue) {
-        if (block.isDissolved()) return;
+        if (block == null || block.isDissolved()) return;
+
+        int movementPerPiece = getBlockMovementAmount(block, diceValue);
+        if (movementPerPiece <= 0) return;
 
         String moveDirection = resolveBlockDirection(block);
-        int movementPerPiece = diceValue / block.getSize();
-
         Cell oldCell = block.getCell();
+        int count = config.getStandardCellCount();
 
-        new ArrayList<>(oldCell.getPieces()).forEach(oldCell::removePiece);
+        for (Piece piece : block.getPieces()) {
+            oldCell.removePiece(piece);
+        }
 
         for (Piece piece : block.getPieces()) {
             piece.setDirection(moveDirection);
-            if ("CLOCKWISE".equals(moveDirection)) {
-                piece.moveToPosition(
-                        (piece.getPosition() + movementPerPiece)
-                                % config.getStandardCellCount()
-                );
-            } else {
-                piece.moveToPosition(
-                        (piece.getPosition() - movementPerPiece + config.getStandardCellCount())
-                                % config.getStandardCellCount()
-                );
-            }
+            int newPosition = "CLOCKWISE".equals(moveDirection)
+                    ? (piece.getPosition() + movementPerPiece) % count
+                    : Math.floorMod(piece.getPosition() - movementPerPiece, count);
+            piece.moveToPosition(newPosition);
         }
 
         if (!block.getPieces().isEmpty()) {
-            int newPosition = block.getPieces().get(0).getPosition();
+            int newPosition = block.getPieces().getFirst().getPosition();
             Cell newCell = board.getCellAt(newPosition);
 
             for (Piece piece : block.getPieces()) {
@@ -318,4 +330,14 @@ public class BlockHandler {
         }
         return closest;
     }
+
+    public int getBlockMovementAmount(Block block, int diceValue) {
+        if (block == null || block.getSize() == 0) return 0;
+        return diceValue / block.getSize();
+    }
+
+    public boolean canBlockMove(Block block, int diceValue) {
+        return getBlockMovementAmount(block, diceValue) > 0;
+    }
+
 }
