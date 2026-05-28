@@ -1,6 +1,7 @@
 package player.strategy;
 
 import board.Board;
+import config.GameConfig;
 import mystery.MysteryManager;
 import piece.Piece;
 import rules.RuleEngine;
@@ -82,7 +83,22 @@ public class RandomStrategy implements IPlayerStrategy {
 
     @Override
     public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
-        Piece current = pieceIterator.current();
-        return current.isInBase();
+        if (diceValue != GameConfig.getInstance().getDiceSides()) {
+            return false;
+        }
+
+        int attempts = pieceIterator.size();
+        for (int i = 0; i < attempts; i++) {
+            Piece current = pieceIterator.current();
+
+            if (current.isAtHome() || !current.canMove()) {
+                pieceIterator.next();
+                continue;
+            }
+
+            return current.isInBase();
+        }
+
+        return false;
     }
 }

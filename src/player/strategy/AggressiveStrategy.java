@@ -63,22 +63,26 @@ public class AggressiveStrategy implements IPlayerStrategy {
 
     @Override
     public boolean shouldMoveFromBase(List<Piece> pieces, int diceValue, Board board) {
-
         boolean hasPieceOnBoard = false;
         for (Piece p : pieces) {
-            if (p.isOnBoard() && !p.isInBase() && !p.isAtHome()) {
+            if (p.isOnBoard()
+                    && !p.isInBase()
+                    && !p.isAtHome()
+                    && !p.isInHomeStraight()) {
                 hasPieceOnBoard = true;
                 break;
             }
         }
         if (!hasPieceOnBoard) return true;
 
+        // Has piece on standard path — only bring another if that piece can't capture
         int count = GameConfig.getInstance().getStandardCellCount();
 
         for (Piece piece : pieces) {
-            if (!piece.isOnBoard() || piece.isInBase() || piece.isAtHome()) continue;
+            if (!piece.isOnBoard() || piece.isInBase()
+                    || piece.isAtHome() || piece.isInHomeStraight()) continue;
 
-            int effective = piece.getEffectiveMovement(GameConfig.getInstance().getStandardCellCount());
+            int effective = piece.getEffectiveMovement(diceValue);
             int destination;
             if ("CLOCKWISE".equals(piece.getDirection())) {
                 destination = (piece.getPosition() + effective) % count;
@@ -87,7 +91,7 @@ public class AggressiveStrategy implements IPlayerStrategy {
             }
 
             Piece target = captureHandler.getCapturedPieceAt(destination, piece.getColor());
-            if (target != null) return false;
+            if (target != null) return false; // current piece CAN capture — don't exit base
         }
         return true;
     }

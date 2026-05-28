@@ -29,13 +29,14 @@ public class BlockHandler {
 
     // piece can be in a block if it is on the standard path and in normal state
     public boolean canBeInBlock(Piece piece) {
+        if (piece == null) return false;
         return piece.isOnBoard()
                 && !piece.isInBase()
                 && !piece.isAtHome()
                 && !piece.isInHomeStraight()
-                && !piece.isFrozen()
-                && !piece.isSick()
-                && !piece.isEnergized();
+                && piece.getPosition() >= 0
+                && piece.getPosition() < config.getStandardCellCount()
+                && piece.isNormalState();
     }
 
     // Block detection ------------------------------------------------------------------------------------
@@ -80,6 +81,23 @@ public class BlockHandler {
         if (!canBeInBlock(piece)) return;
 
         block.addPiece(piece);
+        activeBlocks.put(cell.getPosition(), block);
+    }
+
+    // After block moves, take any same-color normal pieces at the new cell. skips others
+    public void absorbSameColorPieces(Block block) {
+        if (block == null || block.isDissolved()) return;
+
+        Cell cell = block.getCell();
+        String color = block.getPieces().get(0).getColor();
+
+        for (Piece p : new ArrayList<>(cell.getPieces())) {
+            if (block.getPieces().contains(p)) continue;
+            if (p.getColor().equalsIgnoreCase(color) && canBeInBlock(p)) {
+                block.addPiece(p);
+            }
+        }
+
         activeBlocks.put(cell.getPosition(), block);
     }
 
@@ -159,7 +177,7 @@ public class BlockHandler {
         int count = config.getStandardCellCount();
 
         // Use first piece as color representative — all pieces share the same color
-        Piece representative = block.getPieces().get(0);
+        Piece representative = block.getPieces().getFirst();
 
         for (int step = 1; step <= movementPerPiece; step++) {
             int checkPos = "CLOCKWISE".equals(direction)
@@ -191,8 +209,9 @@ public class BlockHandler {
 
         if (block.isDissolved()) {
             activeBlocks.remove(block.getCell().getPosition());
-            if (!block.getPieces().isEmpty()) {
-                block.getPieces().get(0).setInBlock(false);
+            for (Piece remaining : block.getPieces()) {
+                remaining.setInBlock(false);
+                remaining.setDirection(remaining.getOriginalDirection());
             }
         }
     }
@@ -218,11 +237,13 @@ public class BlockHandler {
             Cell oldCell = board.getCellAt(piece.getPosition());
             oldCell.removePiece(piece);
 
+            int sides = config.getDiceSides();
+
             int newPos;
             if ("CLOCKWISE".equals(originalDir)) {
-                newPos = (piece.getPosition() + 6) % config.getStandardCellCount();
+                newPos = (piece.getPosition() + sides) % config.getStandardCellCount();
             } else {
-                newPos = (piece.getPosition() - 6 + config.getStandardCellCount())
+                newPos = (piece.getPosition() - sides + config.getStandardCellCount())
                         % config.getStandardCellCount();
             }
 
@@ -309,7 +330,7 @@ public class BlockHandler {
     private Block findPlayerBlock(Player player) {
         for (Block block : activeBlocks.values()) {
             if (!block.getPieces().isEmpty()
-                    && block.getPieces().get(0).getColor()
+                    && block.getPieces().getFirst().getColor()
                     .equalsIgnoreCase(player.getColor())) {
                 return block;
             }
@@ -318,7 +339,7 @@ public class BlockHandler {
     }
 
     private Piece getClosestToHome(List<Piece> pieces) {
-        Piece closest = pieces.get(0);
+        Piece closest = pieces.getFirst();
         int minDistance = distanceFromApproach(closest);
 
         for (int i = 1; i < pieces.size(); i++) {
@@ -338,6 +359,10 @@ public class BlockHandler {
 
     public boolean canBlockMove(Block block, int diceValue) {
         return getBlockMovementAmount(block, diceValue) > 0;
+    }
+
+    public void removeFromBlockIfNeeded(Piece piece) {
+        piece.setInBlock(false);
     }
 
 }

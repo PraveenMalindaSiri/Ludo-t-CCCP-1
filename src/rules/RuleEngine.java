@@ -132,7 +132,8 @@ public class RuleEngine {
             }
 
             if (piece.isInHomeStraight()) {
-                if (!overshotsHome(piece, diceValue)) {
+                if (piece.getEffectiveMovement(diceValue) > 0
+                        && !overshotsHome(piece, diceValue)) {
                     valid.add(piece);
                 }
                 continue;
@@ -143,8 +144,13 @@ public class RuleEngine {
             if (piece.isInBlock()) {
                 Block block = blockHandler.findBlockAt(
                         board.getCellAt(piece.getPosition()));
-                if (block != null && (!blockHandler.canBlockMove(block, diceValue)
-                        || !blockHandler.canBeInBlock(piece))) {
+
+                if (block == null || !blockHandler.canBeInBlock(piece)) {
+                    blockHandler.removeFromBlockIfNeeded(piece);
+                    continue;
+                }
+
+                if (!blockHandler.canBlockMove(block, diceValue)) {
                     continue;
                 }
             }
@@ -168,9 +174,13 @@ public class RuleEngine {
     public boolean canFormBlock(Piece piece, int destination) {
         Cell cell = board.getCellAt(destination);
         if (!cell.hasPieces()) return false;
-        long sameColor = cell.getPieces().stream()
+        if (!blockHandler.canBeInBlock(piece)) return false;
+
+        long blockableSameColor = cell.getPieces().stream()
                 .filter(p -> p.getColor().equalsIgnoreCase(piece.getColor()))
+                .filter(blockHandler::canBeInBlock)
                 .count();
-        return sameColor == 1;
+
+        return blockableSameColor == 1;
     }
 }

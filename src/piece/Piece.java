@@ -150,6 +150,10 @@ public class Piece implements IMovable, ICapturable {
         return inBase;
     }
 
+    public boolean isNormalState() {
+        return currentState instanceof NormalState;
+    }
+
     public boolean isFrozen() {
         return currentState instanceof FrozenState;
     }

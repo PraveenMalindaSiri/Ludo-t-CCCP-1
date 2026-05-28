@@ -25,7 +25,7 @@ public class GameLogger implements IGameEventListener {
         if (pos == Piece.HOME_POSITION) return "Home";
         if (pos == Piece.BASE_POSITION) return "Base";
         if (pos >= Piece.HOME_STRAIGHT_OFFSET
-                && pos < Piece.HOME_STRAIGHT_OFFSET + 5) {
+                && pos < Piece.HOME_STRAIGHT_OFFSET + GameConfig.getInstance().getHomePathLength()) {
             return color.toLowerCase() + "homepath"
                     + (pos - Piece.HOME_STRAIGHT_OFFSET);
         }
