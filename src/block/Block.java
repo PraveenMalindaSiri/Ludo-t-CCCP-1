@@ -1,6 +1,7 @@
 package block;
 
 import board.Cell;
+import config.GameConfig;
 import piece.Piece;
 
 import java.util.ArrayList;
@@ -40,15 +41,65 @@ public class Block implements IMovable {
     public String getDirection() {
         if (pieces.isEmpty()) return "CLOCKWISE";
 
-        // If all pieces share the same direction, use that direction
-        long cwCount = pieces.stream()
-                .filter(p -> "CLOCKWISE".equals(p.getDirection()))
-                .count();
+        Piece farthestFromHome = null;
+        int longestDistance = -1;
 
-        if (cwCount == pieces.size()) return "CLOCKWISE";
-        if (cwCount == 0) return "COUNTERCLOCKWISE";
+        for (Piece piece : pieces) {
+            int distance = distanceToHomeEntry(piece);
 
-        return cwCount >= pieces.size() - cwCount ? "CLOCKWISE" : "COUNTERCLOCKWISE";
+            if (distance > longestDistance) {
+                longestDistance = distance;
+                farthestFromHome = piece;
+            }
+        }
+
+        return farthestFromHome != null
+                ? farthestFromHome.getDirection()
+                : "CLOCKWISE";
+    }
+
+    private int getApproachPosition(String color) {
+        GameConfig config = GameConfig.getInstance();
+
+        if (color == null) return 0;
+
+        return switch (color.toUpperCase()) {
+            case "YELLOW" -> config.getYellowApproach();
+            case "BLUE" -> config.getBlueApproach();
+            case "RED" -> config.getRedApproach();
+            case "GREEN" -> config.getGreenApproach();
+            default -> 0;
+        };
+    }
+
+    private int distanceToHomeEntry(Piece piece) {
+        if (piece == null) return -1;
+
+        if (piece.isInHomeStraight() || piece.isAtHome()) {
+            return 0;
+        }
+
+        int current = piece.getPosition();
+        int count = GameConfig.getInstance().getStandardCellCount();
+
+        if (current < 0 || current >= count) {
+            return -1;
+        }
+
+        int approach = getApproachPosition(piece.getColor());
+
+        int distance;
+        if ("CLOCKWISE".equals(piece.getDirection())) {
+            distance = Math.floorMod(approach - current, count);
+        } else {
+            distance = Math.floorMod(current - approach, count);
+            
+            if (!piece.getHasPassedApproachOnce()) {
+                distance += count;
+            }
+        }
+
+        return distance;
     }
 
     // Piece -------------------------------------------------------------------------------------

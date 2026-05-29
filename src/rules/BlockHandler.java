@@ -42,16 +42,21 @@ public class BlockHandler {
     // Block detection ------------------------------------------------------------------------------------
 
     public boolean isBlockedByOpponent(Piece movingPiece, int destination) {
+        if (movingPiece == null) return false;
         if (destination < 0 || destination >= config.getStandardCellCount()) return false;
-        Cell cell = board.getCellAt(destination);
-        List<Piece> piecesOnCell = cell.getPieces();
 
-        if (piecesOnCell.size() < 2) return false;
+        Block block = activeBlocks.get(destination);
+        if (block == null) return false;
 
-        String cellColor = piecesOnCell.getFirst().getColor();
-        if (cellColor.equalsIgnoreCase(movingPiece.getColor())) return false;
+        cleanupInvalidPieces(block);
 
-        return piecesOnCell.stream().allMatch(p -> p.getColor().equalsIgnoreCase(cellColor));
+        if (block.isDissolved() || block.getPieces().isEmpty()) {
+            return false;
+        }
+
+        String blockColor = block.getPieces().getFirst().getColor();
+
+        return !blockColor.equalsIgnoreCase(movingPiece.getColor());
     }
 
     public boolean isSameColorBlock(Piece piece, Cell cell) {
@@ -145,18 +150,8 @@ public class BlockHandler {
 
     // direction of the piece farthest from home.
     public String resolveBlockDirection(Block block) {
-        Piece farthest = null;
-        int maxDistance = -1;
-
-        for (Piece piece : block.getPieces()) {
-            int distance = distanceToHomeEntry(piece);
-            if (distance > maxDistance) {
-                maxDistance = distance;
-                farthest = piece;
-            }
-        }
-
-        return farthest != null ? farthest.getDirection() : "CLOCKWISE";
+        if (block == null) return "CLOCKWISE";
+        return block.getDirection();
     }
 
     // Calculates where the block will land after moving.

@@ -566,13 +566,28 @@ public class GameEngine {
 
         if (maxMove < 0 || maxMove == fromPos) {
             fireNoOtherPieces(player.getColor());
-        } else {
-            int steps = calculateStepsBetween(piece, fromPos, maxMove);
-            Cell beforeBlock = board.getCellAt(maxMove);
-            new MoveCommand(piece, fromCell, beforeBlock, steps).execute();
-            fireMovedBeforeBlock(player.getColor(), piece.getFullName(), maxMove);
+            return false;
         }
-        return false;
+
+        int steps = calculateStepsBetween(piece, fromPos, maxMove);
+        Cell beforeBlock = board.getCellAt(maxMove);
+
+        new MoveCommand(piece, fromCell, beforeBlock, steps).execute();
+
+        fireMovedBeforeBlock(player.getColor(), piece.getFullName(), maxMove);
+
+        boolean captured = resolveSinglePieceLanding(player, piece);
+
+        if (!piece.isInBase()
+                && !piece.isAtHome()
+                && !piece.isInHomeStraight()
+                && mysteryManager.isOnMysteryCell(piece.getPosition())) {
+            if (handleMysteryLanding(player, piece)) {
+                captured = true;
+            }
+        }
+
+        return captured;
     }
 
     // Frozen tp --------------------------------------------------------------------------------------------------
