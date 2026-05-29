@@ -32,6 +32,27 @@ public class GameLogger implements IGameEventListener {
         return String.valueOf(pos);
     }
 
+    private String formatDirection(String direction) {
+        if ("COUNTERCLOCKWISE".equals(direction)) {
+            return "counter-clockwise";
+        }
+
+        if ("CLOCKWISE".equals(direction)) {
+            return "clockwise";
+        }
+
+        return direction == null ? "" : direction.toLowerCase();
+    }
+
+    private String ordinal(int number) {
+        return switch (number) {
+            case 1 -> "1st";
+            case 2 -> "2nd";
+            case 3 -> "3rd";
+            default -> number + "th";
+        };
+    }
+
     // Player info ----------------------------------------------------------------
 
     @Override
@@ -104,7 +125,7 @@ public class GameLogger implements IGameEventListener {
                 + " from location " + formatPosition(from, color)
                 + " to " + formatPosition(to, color)
                 + " by " + value + " units in "
-                + direction.toLowerCase() + " direction.");
+                + formatDirection(direction) + " direction.");
     }
 
     // Block info ----------------------------------------------------------------
@@ -244,5 +265,19 @@ public class GameLogger implements IGameEventListener {
     @Override
     public void onGameWon(String color) {
         System.out.println(capitalize(color) + " player wins!!!");
+    }
+
+    @Override
+    public void onFinalPlacements(List<Player> finishOrder) {
+        System.out.println("============================");
+        System.out.println("Final Places");
+        System.out.println("============================");
+
+        for (int i = 0; i < finishOrder.size(); i++) {
+            Player player = finishOrder.get(i);
+
+            System.out.println(ordinal(i + 1) + " place: "
+                    + capitalize(player.getColor()) + " player");
+        }
     }
 }

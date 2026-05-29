@@ -46,4 +46,6 @@ public interface IGameEventListener {
     void onRoundEnd(List<Player> players);
 
     void onGameWon(String color);
+
+    void onFinalPlacements(List<Player> finishOrder);
 }

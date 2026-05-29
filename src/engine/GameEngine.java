@@ -71,6 +71,9 @@ public class GameEngine {
         while (finishOrder.size() < players.size() - 1) {
             playRound(finishOrder);
         }
+
+        addRemainingPlayersToFinishOrder(finishOrder);
+        fireFinalPlacements(finishOrder);
     }
 
     private void initializePiecesInBase() {
@@ -454,6 +457,8 @@ public class GameEngine {
         int firstBlockInPath = blockHandler.getFirstOpponentBlockPositionForBlock(attackingBlock, diceValue);
 
         Piece capturedByBlock = null;
+        List<Piece> capturedDefendersByBlock = new ArrayList<>();
+
         if (firstBlockInPath == -1) {
             capturedByBlock = captureHandler.getCapturedPieceAt(destination, player.getColor());
         }
@@ -461,15 +466,20 @@ public class GameEngine {
         if (firstBlockInPath != -1) {
             if (firstBlockInPath == destination) {
                 Block defendingBlock = blockHandler.findBlockAt(board.getCellAt(destination));
+
                 if (defendingBlock != null
                         && blockHandler.canBlockCaptureBlock(attackingBlock, defendingBlock)) {
+
+                    capturedDefendersByBlock = new ArrayList<>(defendingBlock.getPieces());
                     blockHandler.handleBlockCapture(attackingBlock, defendingBlock);
                     captured = true;
+
                 } else {
                     String blockingColor = board.getCellAt(destination).hasPieces()
                             ? board.getCellAt(destination).getPieces().getFirst().getColor() : "";
                     String blockingName = board.getCellAt(destination).hasPieces()
                             ? board.getCellAt(destination).getPieces().getFirst().getFullName() : "";
+
                     firePieceBlocked(player.getColor(), piece.getFullName(),
                             oldPos, destination, blockingColor, blockingName);
                     fireNoOtherPieces(player.getColor());
@@ -480,6 +490,7 @@ public class GameEngine {
                         ? board.getCellAt(firstBlockInPath).getPieces().getFirst().getColor() : "";
                 String blockingName = board.getCellAt(firstBlockInPath).hasPieces()
                         ? board.getCellAt(firstBlockInPath).getPieces().getFirst().getFullName() : "";
+
                 firePieceBlocked(player.getColor(), piece.getFullName(),
                         oldPos, firstBlockInPath, blockingColor, blockingName);
                 fireNoOtherPieces(player.getColor());
@@ -495,7 +506,25 @@ public class GameEngine {
         firePieceMoved(player.getColor(), piece.getFullName(),
                 oldPos, landedPos, blockMove, piece.getDirection());
 
+        if (!capturedDefendersByBlock.isEmpty()) {
+            for (Piece defender : capturedDefendersByBlock) {
+                Player capturedPlayer = getPlayerByColor(defender.getColor());
+
+                int boardCount = capturedPlayer != null
+                        ? capturedPlayer.getPiecesOnBoard().size() : 0;
+                int baseCount = capturedPlayer != null
+                        ? capturedPlayer.getPiecesInBase().size() : 0;
+
+                firePieceCaptured(player.getColor(), piece.getFullName(),
+                        landedPos,
+                        defender.getColor(), defender.getFullName(),
+                        boardCount, baseCount);
+            }
+        }
+
         if (capturedByBlock != null) {
+            Player capturedPlayer = getPlayerByColor(capturedByBlock.getColor());
+
             new CaptureCommand(piece, capturedByBlock, captureHandler).execute();
 
             for (Piece blockPiece : attackingBlock.getPieces()) {
@@ -504,8 +533,10 @@ public class GameEngine {
                 }
             }
 
-            int boardCount = player.getPiecesOnBoard().size();
-            int baseCount = player.getPiecesInBase().size();
+            int boardCount = capturedPlayer != null
+                    ? capturedPlayer.getPiecesOnBoard().size() : 0;
+            int baseCount = capturedPlayer != null
+                    ? capturedPlayer.getPiecesInBase().size() : 0;
 
             firePieceCaptured(player.getColor(), piece.getFullName(),
                     landedPos,
@@ -833,6 +864,22 @@ public class GameEngine {
 
     // util --------------------------------------------------------------------------------------------------
 
+    private void addRemainingPlayersToFinishOrder(List<Player> finishOrder) {
+        for (Player player : players) {
+            if (!finishOrder.contains(player)) {
+                finishOrder.add(player);
+            }
+        }
+    }
+
+    private void fireFinalPlacements(List<Player> finishOrder) {
+        List<Player> snapshot = new ArrayList<>(finishOrder);
+
+        for (IGameEventListener l : listeners) {
+            l.onFinalPlacements(snapshot);
+        }
+    }
+
     private boolean resolveSinglePieceLanding(Player player, Piece piece) {
         if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) {
             return false;
@@ -868,10 +915,14 @@ public class GameEngine {
 
         Piece capturedPiece = findSingleOpponentIgnoringMover(piece, cell);
         if (capturedPiece != null) {
+            Player capturedPlayer = getPlayerByColor(capturedPiece.getColor());
+
             new CaptureCommand(piece, capturedPiece, captureHandler).execute();
 
-            int boardCount = player.getPiecesOnBoard().size();
-            int baseCount = player.getPiecesInBase().size();
+            int boardCount = capturedPlayer != null
+                    ? capturedPlayer.getPiecesOnBoard().size() : 0;
+            int baseCount = capturedPlayer != null
+                    ? capturedPlayer.getPiecesInBase().size() : 0;
 
             firePieceCaptured(player.getColor(), piece.getFullName(),
                     piece.getPosition(),
