@@ -202,7 +202,9 @@ public class GameEngine {
             if (diceValue == config.getDiceSides()
                     && !player.getPiecesInBase().isEmpty()
                     && player.shouldMoveFromBase(diceValue, board, ruleEngine)) {
-                executeBaseEntry(player, validMoves, diceValue);
+
+                captured = executeBaseEntry(player, validMoves, diceValue);
+
             } else {
                 validMoves.removeIf(Piece::isInBase);
 
@@ -214,21 +216,25 @@ public class GameEngine {
                         if (!chosen.isInBlock()
                                 && !chosen.isInHomeStraight()
                                 && !chosen.isInBase()) {
+
                             int blockPos = blockHandler
                                     .getFirstOpponentBlockPosition(chosen, diceValue);
+
                             if (blockPos != -1 && validMoves.size() > 1) {
-                                // Look for a non-blocked alternative
                                 for (Piece alt : validMoves) {
                                     if (alt == chosen) continue;
                                     if (alt.isInBase() || alt.isAtHome()) continue;
+
                                     if (alt.isInHomeStraight()) {
                                         chosen = alt;
                                         break;
                                     }
+
                                     int altBlockPos = blockHandler
                                             .getFirstOpponentBlockPosition(alt, diceValue);
+
                                     if (altBlockPos == -1) {
-                                        chosen = alt; // use non-blocked piece instead
+                                        chosen = alt;
                                         break;
                                     }
                                 }
@@ -248,16 +254,14 @@ public class GameEngine {
 
     // Enter the base --------------------------------------------------------------------------------------------------
 
-    private void executeBaseEntry(Player player,
-                                  List<Piece> validMoves, int diceValue) {
-        // Filter to base pieces only and let strategy choose
+    private boolean executeBaseEntry(Player player,
+                                     List<Piece> validMoves, int diceValue) {
         List<Piece> basePieces = new ArrayList<>();
         for (Piece p : validMoves) {
             if (p.isInBase()) basePieces.add(p);
         }
-        if (basePieces.isEmpty()) return;
+        if (basePieces.isEmpty()) return false;
 
-        // Let strategy choose — falls back to first if strategy returns null
         Piece piece = player.selectMove(basePieces, diceValue, board, ruleEngine);
         if (piece == null) piece = basePieces.getFirst();
 
@@ -273,6 +277,19 @@ public class GameEngine {
         int baseCount = player.getPiecesInBase().size();
         firePieceEnteredBoard(player.getColor(), piece.getFullName(),
                 boardCount, baseCount);
+
+        boolean captured = resolveSinglePieceLanding(player, piece);
+
+        if (!piece.isInBase()
+                && !piece.isAtHome()
+                && !piece.isInHomeStraight()
+                && mysteryManager.isOnMysteryCell(piece.getPosition())) {
+            if (handleMysteryLanding(player, piece)) {
+                captured = true;
+            }
+        }
+
+        return captured;
     }
 
 
@@ -324,6 +341,11 @@ public class GameEngine {
         Cell fromCell = board.getCellAt(fromPos);
         int effective = piece.getEffectiveMovement(diceValue);
 
+
+        if (piece.isInBlock()) {
+            return executeBlockMove(player, piece, diceValue);
+        }
+
         if (ruleEngine.canPassApproach(piece, diceValue)) {
             int stepsToApproach = blockHandler.distanceFromApproach(piece);
             int stepsOverApproach = effective - stepsToApproach;
@@ -353,96 +375,6 @@ public class GameEngine {
                         && !piece.getHasPassedApproachOnce()) {
                     piece.setHasPassedApproachOnce(true);
                 }
-            }
-        }
-
-        // ── Block movement ────────────────────────────────────────────────────
-        if (piece.isInBlock()) {
-            Cell pieceCell = board.getCellAt(piece.getPosition());
-            Block attackingBlock = blockHandler.findBlockAt(pieceCell);
-
-            if (attackingBlock != null) {
-                int oldPos = piece.getPosition();
-                boolean captured = false;
-
-                int destination = blockHandler.calculateBlockDestination(attackingBlock, diceValue);
-                int firstBlockInPath = blockHandler.getFirstOpponentBlockPositionForBlock(attackingBlock, diceValue);
-
-                if (firstBlockInPath != -1) {
-                    if (firstBlockInPath == destination) {
-                        Block defendingBlock = blockHandler.findBlockAt(board.getCellAt(destination));
-                        if (defendingBlock != null
-                                && blockHandler.canBlockCaptureBlock(attackingBlock, defendingBlock)) {
-                            blockHandler.handleBlockCapture(attackingBlock, defendingBlock);
-                            captured = true;
-                        } else {
-                            String blockingColor = board.getCellAt(destination).hasPieces()
-                                    ? board.getCellAt(destination).getPieces().getFirst().getColor() : "";
-                            String blockingName = board.getCellAt(destination).hasPieces()
-                                    ? board.getCellAt(destination).getPieces().getFirst().getFullName() : "";
-                            firePieceBlocked(player.getColor(), piece.getFullName(),
-                                    oldPos, destination, blockingColor, blockingName);
-                            fireNoOtherPieces(player.getColor());
-                            return false;
-                        }
-                    } else {
-                        String blockingColor = board.getCellAt(firstBlockInPath).hasPieces()
-                                ? board.getCellAt(firstBlockInPath).getPieces().getFirst().getColor() : "";
-                        String blockingName = board.getCellAt(firstBlockInPath).hasPieces()
-                                ? board.getCellAt(firstBlockInPath).getPieces().getFirst().getFullName() : "";
-                        firePieceBlocked(player.getColor(), piece.getFullName(),
-                                oldPos, firstBlockInPath, blockingColor, blockingName);
-                        fireNoOtherPieces(player.getColor());
-                        return false;
-                    }
-                }
-
-                // Move block — use blockMove for correct output
-                int blockMove = blockHandler.getBlockMovementAmount(attackingBlock, diceValue);
-                blockHandler.moveBlock(attackingBlock, diceValue);
-
-                int landedPos = piece.getPosition();
-
-                firePieceMoved(player.getColor(), piece.getFullName(),
-                        oldPos, landedPos, blockMove, piece.getDirection());
-
-                Piece capturedByBlock = captureHandler.getCapturedPieceAt(
-                        landedPos, player.getColor());
-                if (capturedByBlock != null) {
-                    Player capturedPlayer = getPlayerByColor(capturedByBlock.getColor());
-                    new CaptureCommand(piece, capturedByBlock, captureHandler).execute();
-
-                    // All block pieces earn capture count
-                    for (Piece blockPiece : attackingBlock.getPieces()) {
-                        if (blockPiece != piece) {
-                            blockPiece.incrementCaptureCount();
-                        }
-                    }
-
-                    int boardCount = capturedPlayer != null
-                            ? capturedPlayer.getPiecesOnBoard().size() : 0;
-                    int baseCount = capturedPlayer != null
-                            ? capturedPlayer.getPiecesInBase().size() : 0;
-
-                    firePieceCaptured(player.getColor(), piece.getFullName(),
-                            landedPos,
-                            capturedByBlock.getColor(), capturedByBlock.getFullName(),
-                            boardCount, baseCount);
-                    captured = true;
-                }
-
-                if (!captured) {
-                    blockHandler.absorbSameColorPieces(attackingBlock);
-                }
-
-                // Mystery cell check for block landing
-                if (mysteryManager.isOnMysteryCell(landedPos)) {
-                    if (handleMysteryLanding(player, piece)) {
-                        captured = true;
-                    }
-                }
-
-                return captured;
             }
         }
 
@@ -497,6 +429,96 @@ public class GameEngine {
         }
 
         if (mysteryManager.isOnMysteryCell(destination)) {
+            if (handleMysteryLanding(player, piece)) {
+                captured = true;
+            }
+        }
+
+        return captured;
+    }
+
+    // handle Block moves
+    private boolean executeBlockMove(Player player, Piece piece, int diceValue) {
+        Cell pieceCell = board.getCellAt(piece.getPosition());
+        Block attackingBlock = blockHandler.findBlockAt(pieceCell);
+
+        if (attackingBlock == null) {
+            piece.setInBlock(false);
+            return false;
+        }
+
+        int oldPos = piece.getPosition();
+        boolean captured = false;
+
+        int destination = blockHandler.calculateBlockDestination(attackingBlock, diceValue);
+        int firstBlockInPath = blockHandler.getFirstOpponentBlockPositionForBlock(attackingBlock, diceValue);
+
+        Piece capturedByBlock = null;
+        if (firstBlockInPath == -1) {
+            capturedByBlock = captureHandler.getCapturedPieceAt(destination, player.getColor());
+        }
+
+        if (firstBlockInPath != -1) {
+            if (firstBlockInPath == destination) {
+                Block defendingBlock = blockHandler.findBlockAt(board.getCellAt(destination));
+                if (defendingBlock != null
+                        && blockHandler.canBlockCaptureBlock(attackingBlock, defendingBlock)) {
+                    blockHandler.handleBlockCapture(attackingBlock, defendingBlock);
+                    captured = true;
+                } else {
+                    String blockingColor = board.getCellAt(destination).hasPieces()
+                            ? board.getCellAt(destination).getPieces().getFirst().getColor() : "";
+                    String blockingName = board.getCellAt(destination).hasPieces()
+                            ? board.getCellAt(destination).getPieces().getFirst().getFullName() : "";
+                    firePieceBlocked(player.getColor(), piece.getFullName(),
+                            oldPos, destination, blockingColor, blockingName);
+                    fireNoOtherPieces(player.getColor());
+                    return false;
+                }
+            } else {
+                String blockingColor = board.getCellAt(firstBlockInPath).hasPieces()
+                        ? board.getCellAt(firstBlockInPath).getPieces().getFirst().getColor() : "";
+                String blockingName = board.getCellAt(firstBlockInPath).hasPieces()
+                        ? board.getCellAt(firstBlockInPath).getPieces().getFirst().getFullName() : "";
+                firePieceBlocked(player.getColor(), piece.getFullName(),
+                        oldPos, firstBlockInPath, blockingColor, blockingName);
+                fireNoOtherPieces(player.getColor());
+                return false;
+            }
+        }
+
+        int blockMove = blockHandler.getBlockMovementAmount(attackingBlock, diceValue);
+        blockHandler.moveBlock(attackingBlock, diceValue);
+
+        int landedPos = piece.getPosition();
+
+        firePieceMoved(player.getColor(), piece.getFullName(),
+                oldPos, landedPos, blockMove, piece.getDirection());
+
+        if (capturedByBlock != null) {
+            new CaptureCommand(piece, capturedByBlock, captureHandler).execute();
+
+            for (Piece blockPiece : attackingBlock.getPieces()) {
+                if (blockPiece != piece) {
+                    blockPiece.incrementCaptureCount();
+                }
+            }
+
+            int boardCount = player.getPiecesOnBoard().size();
+            int baseCount = player.getPiecesInBase().size();
+
+            firePieceCaptured(player.getColor(), piece.getFullName(),
+                    landedPos,
+                    capturedByBlock.getColor(), capturedByBlock.getFullName(),
+                    boardCount, baseCount);
+            captured = true;
+        }
+
+        if (!captured) {
+            blockHandler.absorbSameColorPieces(attackingBlock);
+        }
+
+        if (mysteryManager.isOnMysteryCell(landedPos)) {
             if (handleMysteryLanding(player, piece)) {
                 captured = true;
             }
@@ -598,11 +620,16 @@ public class GameEngine {
             }
         }
 
-        // MysteryManager removes from mystery cell and applies effect
+        // MysteryManager removes the piece from the mystery cell and applies the teleport/effect.
         mysteryManager.handleLanding(piece);
 
         int effectIndex = mysteryManager.getLastEffectIndex();
         String destination = getEffectDestinationName(effectIndex);
+
+        // Gamma with CCW piece actually ends at Beta, not Gamma.
+        if (effectIndex == 2 && mysteryManager.isLastGammaCCWToBeta()) {
+            destination = "Beta";
+        }
 
         fireMysteryLanding(player.getColor(), piece.getFullName(), destination);
 
@@ -616,10 +643,12 @@ public class GameEngine {
                             "feels sick, and movement speed halves.");
                 }
                 break;
+
             case 1: // Beta
                 fireTeleportEffect(player.getColor(), piece.getFullName(),
                         "attends briefing and cannot move for four rounds.");
                 break;
+
             case 2: // Gamma
                 if (mysteryManager.isLastGammaCCWToBeta()) {
                     fireDirectionChanged(player.getColor(), piece.getFullName(),
@@ -628,6 +657,9 @@ public class GameEngine {
                     fireDirectionChanged(player.getColor(), piece.getFullName(),
                             "CLOCKWISE", "COUNTERCLOCKWISE");
                 }
+                break;
+
+            default:
                 break;
         }
 
@@ -642,26 +674,32 @@ public class GameEngine {
 
         Cell newCell = board.getCellAt(newPos);
 
-        // getCapturedPieceAt only handles single pieces — blocks need separate check
+        // If teleported onto an existing block, a single piece cannot capture it.
         Block destBlock = blockHandler.findBlockAt(newCell);
-        if (destBlock != null) {
+        if (destBlock != null && !destBlock.getPieces().isEmpty()) {
             String destColor = destBlock.getPieces().getFirst().getColor();
+
             if (!destColor.equalsIgnoreCase(player.getColor())) {
-                // Teleported onto opponent block — cannot stay, send to base
+                // ======== Cannot land on an opponent block, send the teleported piece back to base. ========
                 newCell.removePiece(piece);
-                piece.capture(); // full reset Rule T-9
+                piece.capture();
                 board.getBaseCell(piece.getColor()).addPiece(piece);
-                return false; // no bonus roll
+                return false;
             }
-            // Same-color block — absorb piece if eligible
+
+            // Same-color block: only normal standard-path pieces are allowed to join.
             if (blockHandler.canBeInBlock(piece)) {
                 blockHandler.addToBlock(piece, destBlock, newCell);
+            } else {
+                // Avoid illegal same-color stacking outside the block.
+                newCell.removePiece(piece);
+                piece.capture();
+                board.getBaseCell(piece.getColor()).addPiece(piece);
             }
             return false;
         }
 
-        // Single opponent piece capture
-        Piece capturedPiece = captureHandler.getCapturedPieceAt(newPos, player.getColor());
+        Piece capturedPiece = findSingleOpponentIgnoringMover(piece, newCell);
         if (capturedPiece != null) {
             Player capturedPlayer = getPlayerByColor(capturedPiece.getColor());
             new CaptureCommand(piece, capturedPiece, captureHandler).execute();
@@ -678,9 +716,27 @@ public class GameEngine {
             return true;
         }
 
-        // Same-color piece block formation
-        checkAndFormBlock(piece, newCell);
+        // Same-color single piece/block formation after teleport.
+        if (newCell.getPieces().size() > 1) {
+            boolean hasSameColor = false;
 
+            for (Piece other : newCell.getPieces()) {
+                if (other != piece
+                        && other.getColor().equalsIgnoreCase(piece.getColor())) {
+                    hasSameColor = true;
+                    break;
+                }
+            }
+
+            if (hasSameColor && !blockHandler.canBeInBlock(piece)) {
+                newCell.removePiece(piece);
+                piece.capture();
+                board.getBaseCell(piece.getColor()).addPiece(piece);
+                return false;
+            }
+        }
+
+        checkAndFormBlock(piece, newCell);
         return false;
     }
 
@@ -700,6 +756,7 @@ public class GameEngine {
 
     private void handleTripleSixIfBlock(Player player) {
         boolean hasBlock = false;
+
         for (Block block : blockHandler.getActiveBlocks().values()) {
             if (!block.getPieces().isEmpty()
                     && block.getPieces().getFirst().getColor()
@@ -708,8 +765,20 @@ public class GameEngine {
                 break;
             }
         }
+
         if (hasBlock) {
-            blockHandler.handleTripleSixBlockBreak(player);
+            List<Piece> movedPieces = blockHandler.handleTripleSixBlockBreak(player);
+
+            for (Piece movedPiece : movedPieces) {
+                resolveSinglePieceLanding(player, movedPiece);
+
+                if (!movedPiece.isInBase()
+                        && !movedPiece.isAtHome()
+                        && !movedPiece.isInHomeStraight()
+                        && mysteryManager.isOnMysteryCell(movedPiece.getPosition())) {
+                    handleMysteryLanding(player, movedPiece);
+                }
+            }
         }
     }
 
@@ -748,6 +817,92 @@ public class GameEngine {
     }
 
     // util --------------------------------------------------------------------------------------------------
+
+    private boolean resolveSinglePieceLanding(Player player, Piece piece) {
+        if (piece.isInBase() || piece.isAtHome() || piece.isInHomeStraight()) {
+            return false;
+        }
+
+        if (piece.getPosition() < 0
+                || piece.getPosition() >= config.getStandardCellCount()) {
+            return false;
+        }
+
+        Cell cell = board.getCellAt(piece.getPosition());
+
+        Block existingBlock = blockHandler.findBlockAt(cell);
+        if (existingBlock != null && !existingBlock.getPieces().isEmpty()) {
+            String blockColor = existingBlock.getPieces().getFirst().getColor();
+
+            if (!blockColor.equalsIgnoreCase(piece.getColor())) {
+                cell.removePiece(piece);
+                piece.capture();
+                board.getBaseCell(piece.getColor()).addPiece(piece);
+                return false;
+            }
+
+            if (blockHandler.canBeInBlock(piece)) {
+                blockHandler.addToBlock(piece, existingBlock, cell);
+            } else {
+                cell.removePiece(piece);
+                piece.capture();
+                board.getBaseCell(piece.getColor()).addPiece(piece);
+            }
+            return false;
+        }
+
+        Piece capturedPiece = findSingleOpponentIgnoringMover(piece, cell);
+        if (capturedPiece != null) {
+            new CaptureCommand(piece, capturedPiece, captureHandler).execute();
+
+            int boardCount = player.getPiecesOnBoard().size();
+            int baseCount = player.getPiecesInBase().size();
+
+            firePieceCaptured(player.getColor(), piece.getFullName(),
+                    piece.getPosition(),
+                    capturedPiece.getColor(), capturedPiece.getFullName(),
+                    boardCount, baseCount);
+            return true;
+        }
+
+        if (cell.getPieces().size() > 1) {
+            boolean hasSameColor = false;
+            for (Piece other : cell.getPieces()) {
+                if (other != piece
+                        && other.getColor().equalsIgnoreCase(piece.getColor())) {
+                    hasSameColor = true;
+                    break;
+                }
+            }
+
+            if (hasSameColor && !blockHandler.canBeInBlock(piece)) {
+                cell.removePiece(piece);
+                piece.capture();
+                board.getBaseCell(piece.getColor()).addPiece(piece);
+                return false;
+            }
+        }
+
+        checkAndFormBlock(piece, cell);
+        return false;
+    }
+
+    private Piece findSingleOpponentIgnoringMover(Piece mover, Cell cell) {
+        Piece opponent = null;
+        int opponentCount = 0;
+
+        for (Piece other : cell.getPieces()) {
+            if (other == mover) continue;
+            if (!other.isOnBoard() || other.getPosition() != cell.getPosition()) continue;
+
+            if (!other.getColor().equalsIgnoreCase(mover.getColor())) {
+                opponent = other;
+                opponentCount++;
+            }
+        }
+
+        return opponentCount == 1 ? opponent : null;
+    }
 
     private int calculateStepsBetween(Piece piece, int fromPos, int toPos) {
         int count = config.getStandardCellCount();

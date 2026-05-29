@@ -5,7 +5,6 @@ import board.Cell;
 import config.GameConfig;
 import piece.Piece;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,36 +23,88 @@ public class CaptureHandler {
 
     // Check if landing is capturing
     public boolean isCapturePossible(Piece movingPiece, int destination) {
-        Cell cell = board.getCellAt(destination);
-        List<Piece> piecesOnCell = cell.getPieces();
-
-        if (piecesOnCell.isEmpty()) return false;
-        if (piecesOnCell.size() > 1) return false;
-
-        Piece target = piecesOnCell.get(0);
-        return !target.getColor().equalsIgnoreCase(movingPiece.getColor());
+        if (movingPiece == null) return false;
+        return getCapturedPieceAt(destination, movingPiece.getColor()) != null;
     }
 
     public Piece getCapturedPieceAt(int position, String capturerColor) {
+        if (position < 0 || position >= config.getStandardCellCount()) return null;
+
         Cell cell = board.getCellAt(position);
         List<Piece> piecesOnCell = cell.getPieces();
 
-        if (piecesOnCell.size() != 1) return null;
+        Piece opponent = null;
+        int validPiecesOnCell = 0;
 
-        Piece target = piecesOnCell.get(0);
-        if (target.getColor().equalsIgnoreCase(capturerColor)) return null;
+        for (Piece target : piecesOnCell) {
+            // Ignore stale/ghost references that are still in a cell list after reset.
+            if (!isRealStandardPathPieceAt(target, position)) continue;
 
-        return target;
+            validPiecesOnCell++;
+
+            if (!target.getColor().equalsIgnoreCase(capturerColor)) {
+                opponent = target;
+            }
+        }
+
+        if (validPiecesOnCell != 1) return null;
+        return opponent;
     }
 
     // capture
     public void handleCapture(Piece capturerPiece, Piece capturedPiece) {
-        int capturedPosition = capturedPiece.getPosition();
-        Cell cell = board.getCellAt(capturedPosition);
+        if (capturerPiece == null || capturedPiece == null) return;
+        if (capturedPiece.getColor().equalsIgnoreCase(capturerPiece.getColor())) return;
 
-        cell.removePiece(capturedPiece);
-        capturedPiece.capture(); // Rule T-9: full reset
-        board.getBaseCell(capturedPiece.getColor()).addPiece(capturedPiece);
+        boolean wasActuallyOnBoard = capturedPiece.isOnBoard()
+                && !capturedPiece.isInBase()
+                && !capturedPiece.isAtHome()
+                && capturedPiece.getPosition() >= 0
+                && capturedPiece.getPosition() < config.getStandardCellCount();
+
+        Cell currentCell = findStandardCellContaining(capturedPiece);
+        if (currentCell != null) {
+            currentCell.removePiece(capturedPiece);
+        }
+
+        Cell baseCell = board.getBaseCell(capturedPiece.getColor());
+
+        if (!wasActuallyOnBoard) {
+            // Already reset/captured. Do not award a false capture.
+            if (!baseCell.getPieces().contains(capturedPiece)) {
+                baseCell.addPiece(capturedPiece);
+            }
+            return;
+        }
+
+        capturedPiece.capture();
+
+        if (!baseCell.getPieces().contains(capturedPiece)) {
+            baseCell.addPiece(capturedPiece);
+        }
+
         capturerPiece.incrementCaptureCount();
+    }
+
+    private boolean isRealStandardPathPieceAt(Piece piece, int position) {
+        if (piece == null) return false;
+
+        return piece.isOnBoard()
+                && !piece.isInBase()
+                && !piece.isAtHome()
+                && !piece.isInHomeStraight()
+                && piece.getPosition() == position;
+    }
+
+    private Cell findStandardCellContaining(Piece piece) {
+        for (int i = 0; i < config.getStandardCellCount(); i++) {
+            Cell cell = board.getCellAt(i);
+
+            if (cell.getPieces().contains(piece)) {
+                return cell;
+            }
+        }
+
+        return null;
     }
 }

@@ -179,6 +179,13 @@ public class RuleEngine {
             // overshotting from strandard path
             if (overshootsHomeFromStandardPath(piece, diceValue)) continue;
 
+            if (!piece.isInBlock()) {
+                int destination = calculateDestination(piece, diceValue);
+                if (wouldCreateInvalidSameColorStack(piece, destination)) {
+                    continue;
+                }
+            }
+
             valid.add(piece);
         }
 
@@ -209,6 +216,27 @@ public class RuleEngine {
     }
 
     // Helpers
+
+    private boolean wouldCreateInvalidSameColorStack(Piece movingPiece, int destination) {
+        Cell destinationCell = board.getCellAt(destination);
+        if (!destinationCell.hasPieces()) return false;
+
+        boolean hasSameColorPiece = false;
+
+        for (Piece pieceOnCell : destinationCell.getPieces()) {
+            if (pieceOnCell.getColor().equalsIgnoreCase(movingPiece.getColor())) {
+                hasSameColorPiece = true;
+
+                if (!blockHandler.canBeInBlock(pieceOnCell)) {
+                    return true;
+                }
+            }
+        }
+
+        return hasSameColorPiece && !blockHandler.canBeInBlock(movingPiece);
+    }
+
+
     private int calculateStepsOverApproach(Piece piece, int effective) {
         return effective - blockHandler.distanceFromApproach(piece);
     }

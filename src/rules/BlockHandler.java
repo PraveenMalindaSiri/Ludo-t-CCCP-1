@@ -104,6 +104,8 @@ public class BlockHandler {
     // Block movement ----------------------------------------------------------------------------------------
 
     public void moveBlock(Block block, int diceValue) {
+        cleanupInvalidPieces(block);
+
         if (block == null || block.isDissolved()) return;
 
         int movementPerPiece = getBlockMovementAmount(block, diceValue);
@@ -119,9 +121,11 @@ public class BlockHandler {
 
         for (Piece piece : block.getPieces()) {
             piece.setDirection(moveDirection);
+
             int newPosition = "CLOCKWISE".equals(moveDirection)
                     ? (piece.getPosition() + movementPerPiece) % count
                     : Math.floorMod(piece.getPosition() - movementPerPiece, count);
+
             piece.moveToPosition(newPosition);
         }
 
@@ -157,6 +161,10 @@ public class BlockHandler {
 
     // Calculates where the block will land after moving.
     public int calculateBlockDestination(Block block, int diceValue) {
+        cleanupInvalidPieces(block);
+
+        if (block == null || block.isDissolved()) return -1;
+
         int movementPerPiece = diceValue / block.getSize();
         String direction = resolveBlockDirection(block);
         int current = block.getPosition();
@@ -171,12 +179,15 @@ public class BlockHandler {
 
     // scan entire block path to check for first enemy block
     public int getFirstOpponentBlockPositionForBlock(Block block, int diceValue) {
+        cleanupInvalidPieces(block);
+
+        if (block == null || block.isDissolved()) return -1;
+
         int movementPerPiece = diceValue / block.getSize();
         String direction = resolveBlockDirection(block);
         int current = block.getPosition();
         int count = config.getStandardCellCount();
 
-        // Use first piece as color representative — all pieces share the same color
         Piece representative = block.getPieces().getFirst();
 
         for (int step = 1; step <= movementPerPiece; step++) {
@@ -188,6 +199,7 @@ public class BlockHandler {
                 return checkPos;
             }
         }
+
         return -1;
     }
 
@@ -217,21 +229,19 @@ public class BlockHandler {
     }
 
     // Triple six removes all but keep one and move it 6
-    public void handleTripleSixBlockBreak(Player player) {
+    public List<Piece> handleTripleSixBlockBreak(Player player) {
+        List<Piece> movedPieces = new ArrayList<>();
         Block block = findPlayerBlock(player);
-        if (block == null) return;
+        if (block == null) return movedPieces;
 
         List<Piece> blockPieces = new ArrayList<>(block.getPieces());
-        if (blockPieces.size() < 2) return;
+        if (blockPieces.size() < 2) return movedPieces;
 
         Piece keepPiece = getClosestToHome(blockPieces);
         int sides = config.getDiceSides();
-        int cumulativeSteps = 0;
 
         for (Piece piece : blockPieces) {
             if (piece == keepPiece) continue;
-
-            cumulativeSteps += sides;
 
             breakBlock(piece, block);
 
@@ -243,17 +253,20 @@ public class BlockHandler {
 
             int newPos;
             if ("CLOCKWISE".equals(originalDir)) {
-                newPos = (piece.getPosition() + cumulativeSteps)
+                newPos = (piece.getPosition() + sides)
                         % config.getStandardCellCount();
             } else {
-                newPos = (piece.getPosition() - cumulativeSteps
+                newPos = (piece.getPosition() - sides
                         + config.getStandardCellCount())
                         % config.getStandardCellCount();
             }
 
             piece.moveToPosition(newPos);
             board.getCellAt(newPos).addPiece(piece);
+            movedPieces.add(piece);
         }
+
+        return movedPieces;
     }
 
     // Block Capture --------------------------------------------------------------------------------------------------
@@ -376,7 +389,36 @@ public class BlockHandler {
     }
 
     public boolean canBlockMove(Block block, int diceValue) {
-        return getBlockMovementAmount(block, diceValue) > 0;
+        cleanupInvalidPieces(block);
+
+        return block != null
+                && !block.isDissolved()
+                && getBlockMovementAmount(block, diceValue) > 0;
+    }
+
+    private void cleanupInvalidPieces(Block block) {
+        if (block == null) return;
+
+        Cell cell = block.getCell();
+        if (cell == null) return;
+
+        for (Piece piece : new ArrayList<>(block.getPieces())) {
+            boolean stillInThisCell = cell.getPieces().contains(piece);
+            boolean samePosition = piece.getPosition() == cell.getPosition();
+
+            if (!stillInThisCell || !samePosition || !canBeInBlock(piece)) {
+                block.removePiece(piece);
+            }
+        }
+
+        if (block.isDissolved()) {
+            activeBlocks.remove(cell.getPosition());
+
+            for (Piece remaining : block.getPieces()) {
+                remaining.setInBlock(false);
+                remaining.setDirection(remaining.getOriginalDirection());
+            }
+        }
     }
 
     public void removeFromBlockIfNeeded(Piece piece) {
