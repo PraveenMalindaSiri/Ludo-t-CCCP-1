@@ -10,5 +10,6 @@ public class ApproachEffect implements IMysteryEffect {
         int approachPos = board.getApproachPosition(piece.getColor());
         piece.moveToPosition(approachPos);
         board.getApproachCell(piece.getColor()).addPiece(piece);
+        piece.setHasPassedApproachOnce(false);
     }
 }

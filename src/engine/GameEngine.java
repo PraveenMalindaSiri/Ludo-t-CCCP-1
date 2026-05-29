@@ -71,12 +71,6 @@ public class GameEngine {
         while (finishOrder.size() < players.size() - 1) {
             playRound(finishOrder);
         }
-
-        for (Player player : players) {
-            if (!finishOrder.contains(player)) {
-                fireGameWon(player.getColor());
-            }
-        }
     }
 
     private void initializePiecesInBase() {

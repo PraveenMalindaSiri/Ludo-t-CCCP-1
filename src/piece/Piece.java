@@ -103,6 +103,7 @@ public class Piece implements IMovable, ICapturable {
     }
 
     public void moveToHome() {
+        clearTemporaryState();
         this.position = HOME_POSITION;
         this.onBoard = false;
         this.atHome = true;
@@ -117,6 +118,7 @@ public class Piece implements IMovable, ICapturable {
     }
 
     public void moveToHomeStraight(int index) {
+        clearTemporaryState();
         this.position = HOME_STRAIGHT_OFFSET + index;
         this.onBoard = true;
         this.atHome = false;
@@ -164,6 +166,10 @@ public class Piece implements IMovable, ICapturable {
 
     public boolean isEnergized() {
         return currentState instanceof EnergizedState;
+    }
+
+    public void clearTemporaryState() {
+        this.currentState = new NormalState();
     }
 
     // Directions -------------------------------------------------------------------------------------------

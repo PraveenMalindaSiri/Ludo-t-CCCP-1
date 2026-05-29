@@ -75,13 +75,7 @@ public class RuleEngine {
         }
 
         int effective = piece.getEffectiveMovement(diceValue);
-        int stepsToApproach = blockHandler.distanceFromApproach(piece);
-        int stepsOverApproach = effective - stepsToApproach;
-
-        if (piece.getPosition() == board.getApproachPosition(piece.getColor())) {
-            stepsOverApproach = effective;
-        }
-
+        int stepsOverApproach = calculateStepsOverApproach(piece, effective);
         int maxSteps = config.getHomePathLength() + 1;
         return stepsOverApproach > maxSteps;
     }
@@ -169,7 +163,11 @@ public class RuleEngine {
                         board.getCellAt(piece.getPosition()));
 
                 if (block == null || !blockHandler.canBeInBlock(piece)) {
-                    blockHandler.removeFromBlockIfNeeded(piece);
+                    if (block != null) {
+                        blockHandler.breakBlock(piece, block);
+                    } else {
+                        blockHandler.removeFromBlockIfNeeded(piece);
+                    }
                     continue;
                 }
 
@@ -208,5 +206,10 @@ public class RuleEngine {
                 .count();
 
         return blockableSameColor == 1;
+    }
+
+    // Helpers
+    private int calculateStepsOverApproach(Piece piece, int effective) {
+        return effective - blockHandler.distanceFromApproach(piece);
     }
 }
