@@ -9,9 +9,9 @@ public final class GameConfig {
     private final int diceSides = 6;
     private final int mysteryCellDuration = 4;
     private final int maxConsecutiveSixes = 3;
-    private final int alphaCell = 9;
-    private final int betaCell = 27;
-    private final int gammaCell = 46;
+    private final int alphaCell = 8;
+    private final int betaCell = 26;
+    private final int gammaCell = 45;
     private final int effectDuration = 4;
     private final int consecutiveThreesForTeleport = 3;
     private final int roundsBeforeMysterySpawn = 2;
