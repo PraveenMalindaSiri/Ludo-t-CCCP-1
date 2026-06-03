@@ -33,10 +33,10 @@ public class Block implements IMovable {
 
     @Override
     public int getPosition() {
-        return pieces.isEmpty() ? -1 : pieces.get(0).getPosition();
+        return pieces.isEmpty() ? -1 : pieces.getFirst().getPosition();
     }
 
-    // get majority pieces directions
+    // get direction of the piece farthest from home.
     @Override
     public String getDirection() {
         if (pieces.isEmpty()) return "CLOCKWISE";

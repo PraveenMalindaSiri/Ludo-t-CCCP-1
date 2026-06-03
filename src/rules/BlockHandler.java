@@ -116,36 +116,24 @@ public class BlockHandler {
         int movementPerPiece = getBlockMovementAmount(block, diceValue);
         if (movementPerPiece <= 0) return;
 
-        String moveDirection = resolveBlockDirection(block);
         Cell oldCell = block.getCell();
-        int count = config.getStandardCellCount();
 
         for (Piece piece : block.getPieces()) {
             oldCell.removePiece(piece);
         }
 
+        block.move(diceValue);
+
+        int newPosition = block.getPosition();
+        Cell newCell = board.getCellAt(newPosition);
+
         for (Piece piece : block.getPieces()) {
-            piece.setDirection(moveDirection);
-
-            int newPosition = "CLOCKWISE".equals(moveDirection)
-                    ? (piece.getPosition() + movementPerPiece) % count
-                    : Math.floorMod(piece.getPosition() - movementPerPiece, count);
-
-            piece.moveToPosition(newPosition);
+            newCell.addPiece(piece);
         }
 
-        if (!block.getPieces().isEmpty()) {
-            int newPosition = block.getPieces().getFirst().getPosition();
-            Cell newCell = board.getCellAt(newPosition);
-
-            for (Piece piece : block.getPieces()) {
-                newCell.addPiece(piece);
-            }
-
-            activeBlocks.remove(oldCell.getPosition());
-            block.setCell(newCell);
-            activeBlocks.put(newPosition, block);
-        }
+        activeBlocks.remove(oldCell.getPosition());
+        block.setCell(newCell);
+        activeBlocks.put(newPosition, block);
     }
 
     // direction of the piece farthest from home.
