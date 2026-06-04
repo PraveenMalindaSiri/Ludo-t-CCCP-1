@@ -62,4 +62,39 @@ class BoardFactoryTest {
         assertTrue(board.getHomeStraightCell("RED", 0).canAcceptPiece(red));
         assertFalse(board.getHomeStraightCell("RED", 0).canAcceptPiece(blue));
     }
+
+    @Test
+    void boardRecognisesStartingAndApproachCellsByActualCellOwnership() {
+        // Arrange
+        Board board = BoardFactory.createBoard();
+        GameConfig config = GameConfig.getInstance();
+
+        // Act + Assert
+        assertTrue(board.isStartingCell(config.getRedStart(), "RED"));
+        assertTrue(board.isStartingCell(config.getGreenStart(), "GREEN"));
+        assertTrue(board.isStartingCell(config.getYellowStart(), "YELLOW"));
+        assertTrue(board.isStartingCell(config.getBlueStart(), "BLUE"));
+
+        assertFalse(board.isStartingCell(config.getRedStart(), "BLUE"));
+        assertFalse(board.isStartingCell(config.getBlueStart(), "RED"));
+
+        assertTrue(board.isApproachCell(config.getRedApproach(), "RED"));
+        assertTrue(board.isApproachCell(config.getGreenApproach(), "GREEN"));
+        assertTrue(board.isApproachCell(config.getYellowApproach(), "YELLOW"));
+        assertTrue(board.isApproachCell(config.getBlueApproach(), "BLUE"));
+
+        assertFalse(board.isApproachCell(config.getRedApproach(), "BLUE"));
+        assertFalse(board.isApproachCell(config.getBlueApproach(), "RED"));
+    }
+
+    @Test
+    void getCellAtRejectsInvalidIndexes() {
+        // Arrange
+        Board board = BoardFactory.createBoard();
+
+        // Act + Assert
+        assertThrows(IllegalArgumentException.class, () -> board.getCellAt(-1));
+        assertThrows(IllegalArgumentException.class, () -> board.getCellAt(52));
+        assertThrows(IllegalArgumentException.class, () -> board.getCellAt(100));
+    }
 }
