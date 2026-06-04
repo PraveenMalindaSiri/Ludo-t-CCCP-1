@@ -146,6 +146,67 @@ class RuleEngineTest {
         assertTrue(ruleEngine.canFormBlock(moving, 13));
     }
 
+    @Test
+    void energizedHomeStraightExactRollIsNotDoubleAppliedAgain() {
+        // Arrange
+        Piece piece = new Piece("1", "RED");
+        piece.moveToHomeStraight(1); // needs 4 steps to reach home
+        piece.setState(new EnergizedState(4)); // dice 2 becomes 4
+
+        Player player = new DummyPlayer("RED", List.of(piece));
+
+        // Act
+        var validMoves = ruleEngine.getValidMoves(player, 2);
+
+        // Assert
+        assertTrue(ruleEngine.needsExactRoll(piece, 2));
+        assertFalse(ruleEngine.overshotsHome(piece, 2));
+        assertTrue(validMoves.contains(piece));
+    }
+
+    @Test
+    void atHomePieceIsRejectedFromValidMoves() {
+        // Arrange
+        Piece homePiece = new Piece("1", "RED");
+        homePiece.moveToHome();
+
+        Player player = new DummyPlayer("RED", List.of(homePiece));
+
+        // Act
+        var validMoves = ruleEngine.getValidMoves(player, 6);
+
+        // Assert
+        assertFalse(ruleEngine.isValidMove(homePiece, 6));
+        assertFalse(validMoves.contains(homePiece));
+    }
+
+    @Test
+    void basePieceIsValidOnlyWhenDiceIsSix() {
+        // Arrange
+        Piece basePiece = new Piece("1", "RED");
+        Player player = new DummyPlayer("RED", List.of(basePiece));
+
+        // Act
+        var validMovesForFive = ruleEngine.getValidMoves(player, 5);
+        var validMovesForSix = ruleEngine.getValidMoves(player, 6);
+
+        // Assert
+        assertFalse(validMovesForFive.contains(basePiece));
+        assertTrue(validMovesForSix.contains(basePiece));
+    }
+
+    @Test
+    void counterClockwiseFirstApproachPassDoesNotTriggerStandardPathHomeOvershoot() {
+        // Arrange
+        Piece piece = TestHelpers.placePiece(board, "RED", "1", 26, "COUNTERCLOCKWISE");
+        piece.incrementCaptureCount();
+        piece.setHasPassedApproachOnce(false);
+
+        // Act + Assert
+        assertTrue(ruleEngine.canPassApproach(piece, 1));
+        assertFalse(ruleEngine.overshootsHomeFromStandardPath(piece, 6));
+    }
+
     private static class DummyPlayer extends Player {
         DummyPlayer(String color, List<Piece> pieces) {
             super(color, color, pieces, new NoMoveStrategy());

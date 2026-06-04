@@ -106,10 +106,20 @@ public class Board {
     }
 
     public boolean isApproachCell(int position, String color) {
-        return getApproachPosition(color) == position;
+        if (position < 0 || position >= config.getStandardCellCount()) return false;
+
+        Cell cell = getCellAt(position);
+
+        return cell instanceof ApproachCell
+                && ((ApproachCell) cell).isApproachFor(color);
     }
 
     public boolean isStartingCell(int position, String color) {
-        return getStartingPosition(color) == position;
+        if (position < 0 || position >= config.getStandardCellCount()) return false;
+
+        Cell cell = getCellAt(position);
+
+        return cell instanceof StartingCell
+                && ((StartingCell) cell).getOwnerColor().equalsIgnoreCase(color);
     }
 }

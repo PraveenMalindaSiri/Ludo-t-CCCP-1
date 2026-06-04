@@ -78,4 +78,84 @@ class CaptureHandlerTest {
         assertEquals(0, red.getCaptureCount());
         assertTrue(board.getBaseCell("BLUE").getPieces().contains(blue));
     }
+
+    @Test
+    void captureResetClearsMovementRuleStateAndBlockState() {
+        // Arrange
+        Piece red = TestHelpers.placePiece(board, "RED", "1", 10);
+
+        Piece blue = TestHelpers.placePiece(board, "BLUE", "1", 13, "COUNTERCLOCKWISE");
+        blue.setOriginalDirection("COUNTERCLOCKWISE");
+        blue.incrementCaptureCount();
+        blue.setHasPassedApproachOnce(true);
+        blue.setInBlock(true);
+        blue.setState(new EnergizedState(4));
+
+        // Act
+        captureHandler.handleCapture(red, blue);
+
+        // Assert
+        assertEquals(1, red.getCaptureCount());
+
+        assertTrue(blue.isInBase());
+        assertEquals(Piece.BASE_POSITION, blue.getPosition());
+        assertEquals("CLOCKWISE", blue.getDirection());
+        assertEquals("CLOCKWISE", blue.getOriginalDirection());
+        assertEquals(0, blue.getCaptureCount());
+        assertFalse(blue.getHasPassedApproachOnce());
+        assertFalse(blue.isInBlock());
+        assertTrue(blue.isNormalState());
+
+        assertFalse(board.getCellAt(13).getPieces().contains(blue));
+        assertTrue(board.getBaseCell("BLUE").getPieces().contains(blue));
+    }
+
+    @Test
+    void handleCaptureDoesNothingForSameColourPiece() {
+        // Arrange
+        Piece red1 = TestHelpers.placePiece(board, "RED", "1", 10);
+        Piece red2 = TestHelpers.placePiece(board, "RED", "2", 13);
+
+        // Act
+        captureHandler.handleCapture(red1, red2);
+
+        // Assert
+        assertEquals(0, red1.getCaptureCount());
+        assertFalse(red2.isInBase());
+        assertEquals(13, red2.getPosition());
+        assertTrue(board.getCellAt(13).getPieces().contains(red2));
+    }
+
+    @Test
+    void invalidDestinationCannotReturnCapturedPiece() {
+        // Arrange
+        Piece red = TestHelpers.placePiece(board, "RED", "1", 10);
+
+        // Act + Assert
+        assertFalse(captureHandler.isCapturePossible(red, -1));
+        assertFalse(captureHandler.isCapturePossible(red, 52));
+
+        assertNull(captureHandler.getCapturedPieceAt(-1, "RED"));
+        assertNull(captureHandler.getCapturedPieceAt(52, "RED"));
+    }
+
+    @Test
+    void captureDoesNotDuplicatePieceInBaseWhenSamePieceHandledAgain() {
+        // Arrange
+        Piece red = TestHelpers.placePiece(board, "RED", "1", 10);
+        Piece blue = TestHelpers.placePiece(board, "BLUE", "1", 13);
+
+        // Act
+        captureHandler.handleCapture(red, blue);
+        captureHandler.handleCapture(red, blue);
+
+        long blueCountInBase = board.getBaseCell("BLUE").getPieces().stream()
+                .filter(piece -> piece == blue)
+                .count();
+
+        // Assert
+        assertEquals(1, red.getCaptureCount());
+        assertEquals(1, blueCountInBase);
+        assertTrue(blue.isInBase());
+    }
 }

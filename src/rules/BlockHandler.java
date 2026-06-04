@@ -204,9 +204,11 @@ public class BlockHandler {
 
         if (block.isDissolved()) {
             activeBlocks.remove(block.getCell().getPosition());
+
+            block.restoreOriginalDirections();
+
             for (Piece remaining : block.getPieces()) {
                 remaining.setInBlock(false);
-                remaining.setDirection(remaining.getOriginalDirection());
             }
         }
     }
@@ -397,9 +399,10 @@ public class BlockHandler {
         if (block.isDissolved()) {
             activeBlocks.remove(cell.getPosition());
 
+            block.restoreOriginalDirections();
+
             for (Piece remaining : block.getPieces()) {
                 remaining.setInBlock(false);
-                remaining.setDirection(remaining.getOriginalDirection());
             }
         }
     }

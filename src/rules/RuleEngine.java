@@ -104,22 +104,22 @@ public class RuleEngine {
 
         int effective = piece.getEffectiveMovement(diceValue);
         int current = piece.getPosition();
-        int approachPos = board.getApproachPosition(piece.getColor());
         int cellCount = config.getStandardCellCount();
 
-        if (current == approachPos) {
+        if (board.isApproachCell(current, piece.getColor())) {
             return true;
         }
 
-        if ("CLOCKWISE".equals(piece.getDirection())) {
-            for (int step = 1; step <= effective; step++) {
-                if ((current + step) % cellCount == approachPos) return true;
-            }
-        } else {
-            for (int step = 1; step <= effective; step++) {
-                if ((current - step + cellCount) % cellCount == approachPos) return true;
+        for (int step = 1; step <= effective; step++) {
+            int checkPos = "CLOCKWISE".equals(piece.getDirection())
+                    ? (current + step) % cellCount
+                    : (current - step + cellCount) % cellCount;
+
+            if (board.isApproachCell(checkPos, piece.getColor())) {
+                return true;
             }
         }
+
         return false;
     }
 
@@ -138,25 +138,17 @@ public class RuleEngine {
         List<Piece> valid = new ArrayList<>();
 
         for (Piece piece : player.getPieces()) {
-            if (piece.isAtHome()) continue;
-            if (!piece.canMove()) continue;
+            if (!isValidMove(piece, diceValue)) continue;
 
             if (piece.isInBase()) {
-                if (canMoveFromBase(diceValue)) {
-                    valid.add(piece);
-                }
+                valid.add(piece);
                 continue;
             }
 
             if (piece.isInHomeStraight()) {
-                if (piece.getEffectiveMovement(diceValue) > 0
-                        && !overshotsHome(piece, diceValue)) {
-                    valid.add(piece);
-                }
+                valid.add(piece);
                 continue;
             }
-
-            if (piece.getEffectiveMovement(diceValue) <= 0) continue;
 
             if (piece.isInBlock()) {
                 Block block = blockHandler.findBlockAt(
@@ -176,7 +168,6 @@ public class RuleEngine {
                 }
             }
 
-            // overshotting from strandard path
             if (overshootsHomeFromStandardPath(piece, diceValue)) continue;
 
             if (!piece.isInBlock()) {

@@ -206,6 +206,116 @@ class BlockHandlerTest {
         assertFalse(board.getCellAt(10).getPieces().contains(movedPiece));
     }
 
+    @Test
+    void staleBlockIsCleanedWhenOnePieceLeavesTheCell() {
+        // Arrange
+        Cell cell = board.getCellAt(10);
+
+        Piece p1 = TestHelpers.placePiece(board, "GREEN", "1", 10);
+        Piece p2 = TestHelpers.placePiece(board, "GREEN", "2", 10);
+        blockHandler.createBlock(p2, p1, cell);
+
+        Piece red = TestHelpers.placePiece(board, "RED", "1", 5);
+
+        // Simulate a stale block member after capture/reset.
+        p2.moveToBase();
+
+        // Act
+        boolean blocked = blockHandler.isBlockedByOpponent(red, 10);
+
+        // Assert
+        assertFalse(blocked);
+        assertNull(blockHandler.findBlockAt(cell));
+        assertFalse(p1.isInBlock());
+        assertFalse(p2.isInBlock());
+    }
+
+    @Test
+    void blockDirectionUsesPieceFarthestFromHome() {
+        // Arrange
+        Cell cell = board.getCellAt(20);
+
+        Piece clockwise = TestHelpers.placePiece(board, "RED", "1", 20, "CLOCKWISE");
+        Piece counterClockwise = TestHelpers.placePiece(board, "RED", "2", 20, "COUNTERCLOCKWISE");
+        counterClockwise.setHasPassedApproachOnce(false);
+
+        Block block = blockHandler.createBlock(counterClockwise, clockwise, cell);
+
+        // Act + Assert
+        assertEquals("COUNTERCLOCKWISE", blockHandler.resolveBlockDirection(block));
+    }
+
+    @Test
+    void counterClockwisePieceStopsAfterOpponentBlockWhenBlockedAcrossZero() {
+        // Arrange
+        Cell blockCell = board.getCellAt(50);
+
+        Piece green1 = TestHelpers.placePiece(board, "GREEN", "1", 50);
+        Piece green2 = TestHelpers.placePiece(board, "GREEN", "2", 50);
+        blockHandler.createBlock(green2, green1, blockCell);
+
+        Piece red = TestHelpers.placePiece(board, "RED", "1", 1, "COUNTERCLOCKWISE");
+
+        // Act
+        int firstBlockPosition = blockHandler.getFirstOpponentBlockPosition(red, 4);
+        int maxMoveBeforeBlock = blockHandler.getMaxMoveBeforeBlock(red, 4);
+
+        // Assert
+        assertEquals(50, firstBlockPosition);
+        assertEquals(51, maxMoveBeforeBlock);
+    }
+
+    @Test
+    void differentSizedBlocksCannotCaptureEachOther() {
+        // Arrange
+        Cell attackCell = board.getCellAt(10);
+
+        Piece a1 = TestHelpers.placePiece(board, "RED", "1", 10);
+        Piece a2 = TestHelpers.placePiece(board, "RED", "2", 10);
+        Block attackers = blockHandler.createBlock(a2, a1, attackCell);
+
+        Cell defendCell = board.getCellAt(15);
+
+        Piece d1 = TestHelpers.placePiece(board, "BLUE", "1", 15);
+        Piece d2 = TestHelpers.placePiece(board, "BLUE", "2", 15);
+        Piece d3 = TestHelpers.placePiece(board, "BLUE", "3", 15);
+        Block defenders = blockHandler.createBlock(d2, d1, defendCell);
+        blockHandler.addToBlock(d3, defenders, defendCell);
+
+        // Act + Assert
+        assertFalse(blockHandler.canBlockCaptureBlock(attackers, defenders));
+    }
+
+    @Test
+    void breakingTwoPieceBlockRestoresRemainingPieceOriginalDirection() {
+        // Arrange
+        Cell cell = board.getCellAt(10);
+
+        Piece p1 = TestHelpers.placePiece(board, "GREEN", "1", 10, "CLOCKWISE");
+        Piece p2 = TestHelpers.placePiece(board, "GREEN", "2", 10, "COUNTERCLOCKWISE");
+
+        p1.setOriginalDirection("CLOCKWISE");
+        p2.setOriginalDirection("COUNTERCLOCKWISE");
+
+        Block block = blockHandler.createBlock(p2, p1, cell);
+
+        // Simulate block movement changing both directions.
+        p1.setDirection("COUNTERCLOCKWISE");
+        p2.setDirection("COUNTERCLOCKWISE");
+
+        // Act
+        blockHandler.breakBlock(p2, block);
+
+        // Assert
+        assertFalse(p1.isInBlock());
+        assertFalse(p2.isInBlock());
+
+        assertEquals("CLOCKWISE", p1.getDirection());
+        assertEquals("COUNTERCLOCKWISE", p2.getDirection());
+
+        assertNull(blockHandler.findBlockAt(cell));
+    }
+
     private static class DummyPlayer extends Player {
         DummyPlayer(String color, List<Piece> pieces) {
             super(color, color, pieces, new NoMoveStrategy());

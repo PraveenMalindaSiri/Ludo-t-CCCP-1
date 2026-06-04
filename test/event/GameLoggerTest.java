@@ -4,6 +4,7 @@ import mystery.MysteryManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import player.Player;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -11,6 +12,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GameLoggerTest {
     private PrintStream originalOut;
@@ -49,7 +51,8 @@ class GameLoggerTest {
 
     @Test
     void printsCaptureMessageAndCapturedPlayerCounts() {
-        logger.onPieceCaptured("RED", "R1", 14, "BLUE", "B2", 2, 2);
+        logger.onPieceCaptured("RED", "R1", 14,
+                "BLUE", "B2", 2, 2);
 
         String output = output();
         assertTrue(output.contains("Red piece R1 lands on square 14, captures Blue piece B2, and returns it to the base."));
@@ -67,6 +70,88 @@ class GameLoggerTest {
         assertTrue(output.contains("Green piece G1 teleported to Alpha."));
         assertTrue(output.contains("Green piece G1 feels energized, and movement speed doubles."));
         assertTrue(output.contains("Green player wins!!!"));
+    }
+
+    @Test
+    void printsInitialRollFirstPlayerAndTurnOrderMessages() {
+        // Act
+        logger.onInitialRoll("RED", 5);
+        logger.onFirstPlayer("BLUE");
+        logger.onTurnOrder(List.of("BLUE", "RED", "GREEN", "YELLOW"));
+
+        // Assert
+        String output = output();
+        assertTrue(output.contains("Red rolls 5"));
+        assertTrue(output.contains("Blue player has the highest roll and will begin the game."));
+        assertTrue(output.contains("The order of a single round is Blue, Red, Green, and Yellow."));
+    }
+
+    @Test
+    void printsBaseEntryAndBlockedMoveMessages() {
+        // Act
+        logger.onPieceEnteredBoard("YELLOW", "Y1", 1, 3);
+        logger.onPieceBlocked("YELLOW", "Y1", 0, 4, "RED", "R1");
+        logger.onNoOtherPieces("YELLOW");
+        logger.onMovedBeforeBlock("YELLOW", "Y1", 3);
+
+        // Assert
+        String output = output();
+
+        assertTrue(output.contains("Yellow player moves piece Y1 to the starting point."));
+        assertTrue(output.contains("Yellow player now has 1/4 on pieces on the board and 3/4 pieces on the base."));
+
+        assertTrue(output.contains("Yellow piece Y1 is blocked from moving from 0 to 4 by Red piece R1."));
+        assertTrue(output.contains("Ignoring the throw and moving on to the next player."));
+        assertTrue(output.contains("Moved the piece to square 3 which is the cell before the block."));
+    }
+
+    @Test
+    void printsDirectionChangeAndMysterySpawnMessages() {
+        // Act
+        logger.onDirectionChanged("RED", "R1", "CLOCKWISE", "COUNTERCLOCKWISE");
+        logger.onDirectionChanged("BLUE", "B1", "COUNTERCLOCKWISE", "CLOCKWISE");
+        logger.onMysteryCellSpawned(27, 4);
+
+        // Assert
+        String output = output();
+
+        assertTrue(output.contains(
+                "The Red piece R1, which was moving clockwise, has changed to moving counterclockwise."
+        ));
+
+        assertTrue(output.contains(
+                "The Blue piece B1 is moving in a counterclockwise direction. Teleporting to Beta from Gamma."
+        ));
+
+        assertTrue(output.contains(
+                "A mystery cell has spawned in location 27 and will be at this location for the next 4 rounds."
+        ));
+    }
+
+    @Test
+    void printsFinalPlacementMessages() {
+        // Arrange
+        Player green = mock(Player.class);
+        Player red = mock(Player.class);
+        Player blue = mock(Player.class);
+        Player yellow = mock(Player.class);
+
+        when(green.getColor()).thenReturn("GREEN");
+        when(red.getColor()).thenReturn("RED");
+        when(blue.getColor()).thenReturn("BLUE");
+        when(yellow.getColor()).thenReturn("YELLOW");
+
+        // Act
+        logger.onFinalPlacements(List.of(green, red, blue, yellow));
+
+        // Assert
+        String output = output();
+
+        assertTrue(output.contains("Final Places"));
+        assertTrue(output.contains("1st place: Green player"));
+        assertTrue(output.contains("2nd place: Red player"));
+        assertTrue(output.contains("3rd place: Blue player"));
+        assertTrue(output.contains("4th place: Yellow player"));
     }
 
     private String output() {
