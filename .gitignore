@@ -15,6 +15,13 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
+# Coverage reports
+coverage-report/
+htmlReport/
+.idea/coverage/
+*.exec
+*.ic
+
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
