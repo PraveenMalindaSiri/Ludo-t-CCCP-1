@@ -112,7 +112,7 @@ public class Block implements IMovable {
     public void removePiece(Piece piece) {
         pieces.remove(piece);
         piece.setInBlock(false);
-        piece.setDirection(piece.getOriginalDirection()); // Rule T-5
+        piece.setDirection(piece.getOriginalDirection());
     }
 
     public List<Piece> getPieces() {

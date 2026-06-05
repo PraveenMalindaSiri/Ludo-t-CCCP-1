@@ -85,7 +85,6 @@ public class MysteryManager {
         board.getCellAt(currentPosition).removePiece(piece);
         effects.get(lastEffectIndex).apply(piece, board);
 
-        // Derive logger flags by reading piece state — no coupling to effect logic
         if (lastEffectIndex == 0) {
             lastAlphaWasEnergized = piece.getState() instanceof EnergizedState;
         }

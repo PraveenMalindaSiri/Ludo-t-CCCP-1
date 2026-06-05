@@ -25,9 +25,6 @@ public class CyclicIterator<T> {
         return items.get(currentIndex);
     }
 
-    /**
-     * Resets the iterator back to index 0.
-     */
     public void reset() {
         currentIndex = 0;
     }

@@ -29,7 +29,7 @@ public class WinStrategy implements IPlayerStrategy {
         Piece closest = getClosestToApproach(validMoves);
         if (closest != null) return closest;
 
-        return validMoves.get(0);
+        return validMoves.getFirst();
     }
 
     // pieces with no captures

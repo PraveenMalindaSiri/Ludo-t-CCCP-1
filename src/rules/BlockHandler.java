@@ -268,7 +268,7 @@ public class BlockHandler {
 
         for (Piece defender : defenders) {
             defendingCell.removePiece(defender);
-            defender.capture(); // Rule T-9: full reset
+            defender.capture();
             board.getBaseCell(defender.getColor()).addPiece(defender);
         }
 

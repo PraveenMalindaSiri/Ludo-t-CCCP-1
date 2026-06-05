@@ -319,7 +319,6 @@ public class GameEngine {
         fromCell.removePiece(piece);
 
         if (homeStraightIndex >= config.getHomePathLength()) {
-            // Reaches home exactly (stepsOverApproach == homePathLength + 1)
             piece.moveToHome();
             board.getHomeCell(piece.getColor()).addPiece(piece);
         } else {
@@ -381,7 +380,7 @@ public class GameEngine {
             }
         }
 
-        // ── Standard path ─────────────────────────────────────────────────────
+        // Standard path -----------------------------------------------------------------
         int destination = ruleEngine.calculateDestination(piece, diceValue);
 
         int blockPos = blockHandler.getFirstOpponentBlockPosition(piece, diceValue);
@@ -726,7 +725,7 @@ public class GameEngine {
             String destColor = destBlock.getPieces().getFirst().getColor();
 
             if (!destColor.equalsIgnoreCase(player.getColor())) {
-                // ======== Cannot land on an opponent block, send the teleported piece back to base. ========
+                // Cannot land on an opponent block, send the teleported piece back to base.
                 newCell.removePiece(piece);
                 piece.capture();
                 board.getBaseCell(piece.getColor()).addPiece(piece);

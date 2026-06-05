@@ -25,7 +25,7 @@ public class Piece implements IMovable, ICapturable {
     private String originalDirection; // set when enters X
 
     private int captureCount;
-    private boolean hasPassedApproachOnce; // for CCW pieces second pass (T-1)
+    private boolean hasPassedApproachOnce; // for CCW pieces second pass
     private boolean inBlock;
     private IPieceState currentState;
 

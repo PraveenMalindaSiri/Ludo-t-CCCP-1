@@ -170,7 +170,6 @@ public class GameLogger implements IGameEventListener {
                 + ", captures " + capitalize(capturedColor)
                 + " piece " + capturedName
                 + ", and returns it to the base.");
-        // Spec requires board/base count of the CAPTURED player after capture
         System.out.println(capitalize(capturedColor) + " player now has "
                 + boardCount + "/" + GameConfig.getInstance().getPiecesPerPlayer()
                 + " on pieces on the board and "
@@ -201,13 +200,13 @@ public class GameLogger implements IGameEventListener {
     public void onDirectionChanged(String color, String pieceName,
                                    String oldDirection, String newDirection) {
         if ("COUNTERCLOCKWISE".equals(newDirection)) {
-            // CW piece changed to CCW at Gamma (Rule T-14)
+            // CW piece changed to CCW at Gamma
             System.out.println("The " + capitalize(color)
                     + " piece " + pieceName
                     + ", which was moving clockwise,"
                     + " has changed to moving counterclockwise.");
         } else {
-            // CCW piece redirected to Beta from Gamma (Rule T-14)
+            // CCW piece redirected to Beta from Gamma
             System.out.println("The " + capitalize(color)
                     + " piece " + pieceName
                     + " is moving in a counterclockwise direction."
@@ -228,7 +227,6 @@ public class GameLogger implements IGameEventListener {
     @Override
     public void onRoundEnd(List<Player> players) {
         for (Player player : players) {
-            // Use existing Player methods — no stream duplication
             int boardCount = player.getPiecesOnBoard().size();
             int baseCount = player.getPiecesInBase().size();
 
@@ -244,15 +242,12 @@ public class GameLogger implements IGameEventListener {
             System.out.println("============================");
 
             for (Piece piece : player.getPieces()) {
-                // Use piece.positionLabel() — no duplicate location logic
                 System.out.println("Piece " + piece.getName()
                         + " -> " + piece.positionLabel());
             }
         }
 
-        // Query MysteryManager directly — no extra params needed on onRoundEnd
         if (mysteryManager.isActive()) {
-            // "values" matches spec — not "rounds"
             System.out.println("The mystery cell is at "
                     + mysteryManager.getPosition()
                     + " and will be at that location for the next "

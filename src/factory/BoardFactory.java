@@ -120,7 +120,7 @@ public class BoardFactory {
             List<HomeStraightCell> cells = new ArrayList<>();
             for (int i = 0; i < config.getHomePathLength(); i++) {
                 cells.add(new HomeStraightCell(
-                        Piece.HOME_STRAIGHT_OFFSET + i, // matches Piece encoding
+                        Piece.HOME_STRAIGHT_OFFSET + i,
                         color,
                         i
                 ));

@@ -37,7 +37,6 @@ public class CaptureHandler {
         int validPiecesOnCell = 0;
 
         for (Piece target : piecesOnCell) {
-            // Ignore stale/ghost references that are still in a cell list after reset.
             if (!isRealStandardPathPieceAt(target, position)) continue;
 
             validPiecesOnCell++;
@@ -70,7 +69,6 @@ public class CaptureHandler {
         Cell baseCell = board.getBaseCell(capturedPiece.getColor());
 
         if (!wasActuallyOnBoard) {
-            // Already reset/captured. Do not award a false capture.
             if (!baseCell.getPieces().contains(capturedPiece)) {
                 baseCell.addPiece(capturedPiece);
             }
